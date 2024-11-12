@@ -11,6 +11,8 @@ spec:
       args:
         - --model_name=qwen-model-name
         - --model_id=Qwen/Qwen2.5-1.5B-Instruct
+        - --tool-call-parser 
+        - --enforce-eager
       resources:
         limits:
           cpu: "8"
