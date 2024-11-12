@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-rerank-model-cache
+  namespace: kubeflow-user-example-com
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: openebs-hostpath
+  volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reranking-inference
+  namespace: kubeflow-user-example-com
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reranking
+  template:
+    metadata:
+      labels:
+        app: reranking
+    spec:
+      containers:
+      - name: reranking
+        image: ghcr.io/huggingface/text-embeddings-inference:turing-1.5
+        ports:
+        - containerPort: 80
+        env:
+        - name: MODEL_ID
+          value: "BAAI/bge-reranker-v2-m3"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: "1"
+        volumeMounts:
+        - mountPath: /data
+          name: hf-rerank-model-cache
+      volumes:
+      - name: hf-rerank-model-cache
+        persistentVolumeClaim:
+          claimName: hf-rerank-model-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reranking-service
+  namespace: kubeflow-user-example-com
+spec:
+  selector:
+    app: reranking
+  sessionAffinity: None
+  type: ClusterIP
+  ports:
+  - name: http-reranking
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reranking-nodeport
+  namespace: kubeflow-user-example-com
+spec:
+  ports:
+  - name: http-reranking
+    port: 80
+    protocol: TCP
+    targetPort: 80
+    nodePort: 32237
+  selector:
+    app: reranking
+  sessionAffinity: None
+  type: NodePort
+

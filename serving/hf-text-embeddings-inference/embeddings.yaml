@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hf-text-embed-model-cache
+  namespace: kubeflow-user-example-com
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: openebs-hostpath
+  volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text-embeddings-inference
+  namespace: kubeflow-user-example-com
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text-embeddings
+  template:
+    metadata:
+      labels:
+        app: text-embeddings
+    spec:
+      containers:
+      - name: text-embeddings
+        image: ghcr.io/huggingface/text-embeddings-inference:turing-1.5
+        ports:
+        - containerPort: 80
+        env:
+        - name: MODEL_ID
+          # value: "BAAI/bge-reranker-v2-m3"
+          # value: "intfloat/multilingual-e5-large-instruct"
+          value: "ellamind/e5large_sgb_aktg_bmf_experimental"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: "1"
+        volumeMounts:
+        - mountPath: /data
+          name: hf-text-embed-model-cache
+      volumes:
+      - name: hf-text-embed-model-cache
+        persistentVolumeClaim:
+          claimName: hf-text-embed-model-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: text-embeddings-service
+  namespace: kubeflow-user-example-com
+spec:
+  selector:
+    app: text-embeddings
+  sessionAffinity: None
+  type: ClusterIP
+  ports:
+  - name: http-text-embeddings
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: text-embeddings-nodeport
+  namespace: kubeflow-user-example-com
+spec:
+  ports:
+  - name: http-text-embeddings
+    port: 80
+    protocol: TCP
+    targetPort: 80
+    nodePort: 32236
+  selector:
+    app: text-embeddings
+  sessionAffinity: None
+  type: NodePort
+
