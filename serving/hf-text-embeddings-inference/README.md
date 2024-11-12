@@ -62,7 +62,7 @@ your nginx config under /etc/nginx/nginx.conf on the host.
 With node port and nginx config
 
 ```sh
- curl "https://34.13.138.162/text-embeddings/embed" \
+ curl "https://<you host>/text-embeddings/embed" \
     -k \
     -d '{"inputs":"What is Deep Learning?"}' \
     -H 'Content-Type: application/json' \
@@ -72,7 +72,7 @@ With node port and nginx config
 ## Rerankings
 
 ```sh
-curl "https://34.13.138.162/reranking/rerank" \
+curl "https://<you host>/reranking/rerank" \
     -k \
     -d '{"query":"What is Deep Learning?", "texts": ["Deep Learning is not...", "Deep learning is..."]}' \
     -H 'Content-Type: application/json' \

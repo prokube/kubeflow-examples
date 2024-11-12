@@ -1,5 +1,5 @@
 ```sh
-SERVICE_HOST=35.204.177.255
+SERVICE_HOST=<your host>
 MODEL_NAME=qwen-model-name
 INVERENCE_SERVICE_NAME=qwen-inf-serv
 NAMESPACE=kubeflow-user-example-com
