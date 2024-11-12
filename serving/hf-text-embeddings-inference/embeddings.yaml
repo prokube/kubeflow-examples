@@ -34,9 +34,12 @@ spec:
         - containerPort: 80
         env:
         - name: MODEL_ID
-          # value: "BAAI/bge-reranker-v2-m3"
-          # value: "intfloat/multilingual-e5-large-instruct"
           value: "ellamind/e5large_sgb_aktg_bmf_experimental"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hf-text-embeddings-api-key-secret
+              key: api-key
         resources:
           requests:
             memory: "2Gi"

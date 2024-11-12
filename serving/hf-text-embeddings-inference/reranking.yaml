@@ -35,6 +35,11 @@ spec:
         env:
         - name: MODEL_ID
           value: "BAAI/bge-reranker-v2-m3"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hf-text-embeddings-api-key-secret
+              key: api-key
         resources:
           requests:
             memory: "2Gi"
