@@ -19,8 +19,7 @@ echo -n 'your_api_key_here' | base64
 apiVersion: v1
 kind: Secret
 metadata:
-  name: reranking-api-key-secret
-  namespace: kubeflow-user-example-com
+  name: hf-text-embeddings-api-key-secret
 type: Opaque
 data:
   api-key: <base64-encoded-api-key>
@@ -28,7 +27,8 @@ data:
 
 Apply the Secret to Your Kubernetes Cluster Save the YAML file and apply it to your Kubernetes cluster using the following command:
 ```sh
-kubectl apply -f secret.yaml
+kubectl apply -f secret.yaml -n kubeflow-user-example-com
+kubectl apply -f secret.yaml -n monitoring 
 ```
 
 ## nginx config
