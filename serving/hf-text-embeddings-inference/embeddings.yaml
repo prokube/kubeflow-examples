@@ -35,6 +35,12 @@ spec:
         env:
         - name: MODEL_ID
           value: "ellamind/e5large_sgb_aktg_bmf_experimental"
+        - name: MAX_BATCH_REQUESTS
+          value: "32"
+        - name: MAX_CLIENT_BATCH_SIZE
+          value: "512"
+        - name: AUTO_TRUNCATE
+          value: "true"
         - name: API_KEY
           valueFrom:
             secretKeyRef:
