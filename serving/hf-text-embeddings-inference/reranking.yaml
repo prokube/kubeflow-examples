@@ -89,4 +89,25 @@ spec:
     app: reranking
   sessionAffinity: None
   type: NodePort
-
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    prometheus: application-monitoring
+  name: reranking-monitoring
+  namespace: monitoring
+spec:
+  endpoints:
+  - interval: 15s
+    path: /metrics
+    port: http-reranking
+    bearerTokenSecret:
+      key: api-key
+      name: hf-text-embeddings-api-key-secret
+  namespaceSelector:
+    matchNames:
+    - kubeflow-user-example-com
+  selector:
+    matchLabels:
+      app: reranking
