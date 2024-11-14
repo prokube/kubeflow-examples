@@ -101,7 +101,7 @@ kind: ServiceMonitor
 metadata:
   labels:
     prometheus: application-monitoring
-  name: dei-monitoring
+  name: text-embeddings-monitoring
   namespace: monitoring
 spec:
   endpoints:
