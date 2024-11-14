@@ -34,7 +34,7 @@ spec:
         - containerPort: 80
         env:
         - name: MODEL_ID
-          value: "ellamind/e5large_sgb_aktg_bmf_experimental"
+          value: "intfloat/multilingual-e5-large-instruct"
         - name: MAX_BATCH_REQUESTS
           value: "32"
         - name: MAX_CLIENT_BATCH_SIZE
