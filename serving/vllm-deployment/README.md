@@ -19,7 +19,7 @@ curl http://localhost:8000/v1/chat/completions \
 ## Exp2:
 With nodeport and nginx routing and no guided choice:
 ```sh
-curl https://<your host>/qwen-1-5b/v1/chat/completions \
+ curl https://<your host>/v1/chat/completions \
     -H "Content-Type: application/json" \
     -d '{
         "model": "Qwen/Qwen2.5-1.5B-Instruct",
