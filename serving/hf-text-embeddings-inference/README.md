@@ -1,6 +1,11 @@
-## Create Secret
+## Hugging Face Text Embeddings Inference
+Currently, vLLM does not support embedding or reranking models. Therefore, this
+example demonstrates how to deploy the Hugging Face Text Embeddings Inference
+(TEI) containers.
 
-To securely use an API-Key within your Kubernetes environment, you need to
+## Create a Secret
+
+To use an API-Key within your Kubernetes environment, you need to
 create a secret that holds the encoded value of the key. Here's how you can do
 it:
 
@@ -25,19 +30,31 @@ data:
   api-key: <base64-encoded-api-key>
 ```
 
-Apply the Secret to Your Kubernetes Cluster Save the YAML file and apply it to your Kubernetes cluster using the following command:
+Apply the Secret to the namespace where the deployment will be running and to
+the monitoring namespace, like so:
 ```sh
 kubectl apply -f secret.yaml -n kubeflow-user-example-com
 kubectl apply -f secret.yaml -n monitoring 
 ```
 
-## nginx config
-For this simple example, we're using node ports. Please add these settings to
-your nginx config under /etc/nginx/nginx.conf on the host.
+
+## Deploy the Model
+Initiate the deployment from this directory with the following commands:
+```sh
+kubectl apply -f embeddings.yaml
+kubectl apply -f reranking.yaml
+```
+
+
+
+## Routing
+For this simple example, we are using NodePorts. Please add the following
+settings to your Nginx configuration under `/etc/nginx/nginx.conf` on the host:
 
 ```txt
+
         location /v1/embeddings {
-            proxy_pass http://127.0.0.1:32236/embed;
+            proxy_pass http://127.0.0.1:32236/v1/embeddings;
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -55,24 +72,26 @@ your nginx config under /etc/nginx/nginx.conf on the host.
         }
 ```
 
-## Embeddings
+## Sending Requests
+With NodePort and Nginx configuration, you can send requests to the models as follows:
 
-With node port and nginx config
-
+### Embeddings request:
 ```sh
- curl "https://<you host>/text-embeddings/embed" \
-    -k \
-    -d '{"inputs":"What is Deep Learning?"}' \
-    -H 'Content-Type: application/json' \
-    -H 'Authorization: Bearer <your token>'
+curl --location '<your host>/v1/embeddings' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer <your token>' \
+--data '{
+    "input": 
+    [
+        "MLOPs is might be important"
+    ],
+    "model": "intfloat/multilingual-e5-large-instruct"
+}'
 ```
-
-## Rerankings
-
+## Request reranking:
 ```sh
-curl "https://<you host>/reranking/rerank" \
-    -k \
-    -d '{"query":"What is Deep Learning?", "texts": ["Deep Learning is not...", "Deep learning is..."]}' \
+curl "<your host>/v1/reranking" \
+    -d '{"query":"What is MLOPs?", "texts": ["Deep Learning is not...", "Deep learning is...", "Machine Learning Operation is...", "DevOps seams to be ..."]}' \
     -H 'Content-Type: application/json' \
     -H 'Authorization: Bearer <your token>'
 ```
