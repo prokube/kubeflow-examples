@@ -2,7 +2,6 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: qwen-inf-serv
-  namespace: kubeflow-user-example-com
 spec:
   predictor:
     model:
