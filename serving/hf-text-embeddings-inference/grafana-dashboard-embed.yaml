@@ -30,12 +30,12 @@ data:
           }
         ]
       },
-      "description": "These metrics are exposed by containers run using Hugging Face’s Text Generation Inference toolkit project (https://github.com/huggingface/text-generation-inference). \r\n\r\nThe second version is a simple dashboard displaying all available metrics, and the third version is an improved version based on the dashboard here: https://github.com/huggingface/text-generation-inference/discussions/1127#discussioncomment-7854661",
+      "description": "These metrics are exposed by containers run using Hugging Face’s Text Embeddings Inference toolkit project (https://github.com/huggingface/text-embeddings-inference).",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "gnetId": 19831,
       "graphTooltip": 0,
-      "id": 45,
+      "id": 47,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -127,7 +127,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(increase(te_embed_success{app=~\"$service\"}[$__rate_interval]))",
+              "expr": "sum(increase(te_request_success{container=\"$model\"}[$__rate_interval]))",
               "legendFormat": "Success",
               "range": true,
               "refId": "A"
@@ -138,8 +138,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(increase(te_request_failure{app=~\"$service\"}[$__rate_interval])) by (err)",
-
+              "expr": "sum(increase(te_request_failure{container=\"$model\"}[$__rate_interval])) by (err)",
               "hide": false,
               "legendFormat": "Error: {{err}}",
               "range": true,
@@ -283,7 +282,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "legendFormat": "p50",
               "range": true,
               "refId": "A"
@@ -294,7 +293,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p90",
               "range": true,
@@ -306,7 +305,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p99",
               "range": true,
@@ -411,7 +410,7 @@ data:
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(increase(te_request_duration_bucket{app=~\"$service\"}[$__rate_interval])) by (le)",
+              "expr": "sum(increase(te_request_duration_bucket{container=\"$model\"}[$__rate_interval])) by (le)",
               "format": "heatmap",
               "interval": "",
               "legendFormat": "{{ le }}",
@@ -525,7 +524,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "count(te_request_count{app=~\"$service\"})",
+              "expr": "count(te_request_count{container=\"$model\"})",
               "legendFormat": "Replicas",
               "range": true,
               "refId": "A"
@@ -595,7 +594,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(te_queue_size{app=~\"$service\"})",
+              "expr": "sum(te_queue_size{container=\"$model\"})",
               "legendFormat": "__auto",
               "range": true,
               "refId": "A"
@@ -718,7 +717,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "sum(te_queue_size{app=~\"$service\"})",
+              "expr": "sum(te_queue_size{container=\"$model\"})",
               "legendFormat": "Queue size",
               "range": true,
               "refId": "A"
@@ -874,7 +873,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_input_length_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_input_length_bucket{container=\"$model\"}[$__rate_interval])))",
               "legendFormat": "p50",
               "range": true,
               "refId": "A"
@@ -885,7 +884,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_input_length_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_input_length_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p90",
               "range": true,
@@ -897,7 +896,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_input_length_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_input_length_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p99",
               "range": true,
@@ -1041,7 +1040,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_inference_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_inference_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "legendFormat": "p50",
               "range": true,
               "refId": "A"
@@ -1052,7 +1051,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_inference_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_inference_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p90",
               "range": true,
@@ -1064,7 +1063,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_inference_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_inference_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p99",
               "range": true,
@@ -1208,7 +1207,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_queue_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(te_request_queue_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "legendFormat": "p50",
               "range": true,
               "refId": "A"
@@ -1219,7 +1218,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_queue_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.9, sum by (le) (rate(te_request_queue_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p90",
               "range": true,
@@ -1231,7 +1230,7 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_queue_duration_bucket{app=~\"$service\"}[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(te_request_queue_duration_bucket{container=\"$model\"}[$__rate_interval])))",
               "hide": false,
               "legendFormat": "p99",
               "range": true,
@@ -1249,14 +1248,33 @@ data:
       "templating": {
         "list": [
           {
-            "name": "service",
-            "label": "Service",
-            "type": "constant",
             "current": {
-              "text": "embeddings-service",
-              "value": "embeddings-service"
+              "selected": true,
+              "text": "embeddings",
+              "value": "text-embeddings"
             },
-            "hide": 0
+            "description": "",
+            "hide": 0,
+            "includeAll": false,
+            "label": "Model",
+            "multi": false,
+            "name": "model",
+            "options": [
+              {
+                "selected": true,
+                "text": "embeddings",
+                "value": "text-embeddings"
+              },
+              {
+                "selected": false,
+                "text": "reranking",
+                "value": "reranking"
+              }
+            ],
+            "query": "embeddings : text-embeddings, reranking : reranking",
+            "queryValue": "",
+            "skipUrlSync": false,
+            "type": "custom"
           }
         ]
       },
@@ -1270,6 +1288,6 @@ data:
       "timezone": "browser",
       "title": "Embeddings Inference",
       "uid": "d5c579fd-1d6e-4a7c-8846-9e6bedf5604e",
-      "version": 10,
+      "version": 11,
       "weekStart": ""
     }
