@@ -68,6 +68,8 @@ kind: Service
 metadata:
   name: text-embeddings-service
   namespace: kubeflow-user-example-com
+  labels:
+    app: text-embeddings
 spec:
   selector:
     app: text-embeddings
@@ -84,6 +86,8 @@ kind: Service
 metadata:
   name: text-embeddings-nodeport
   namespace: kubeflow-user-example-com
+  labels:
+    app: text-embeddings
 spec:
   ports:
   - name: http-text-embeddings

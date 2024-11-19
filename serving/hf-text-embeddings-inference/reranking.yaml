@@ -62,6 +62,8 @@ kind: Service
 metadata:
   name: reranking-service
   namespace: kubeflow-user-example-com
+  labels:
+    app: reranking
 spec:
   selector:
     app: reranking
@@ -78,6 +80,8 @@ kind: Service
 metadata:
   name: reranking-nodeport
   namespace: kubeflow-user-example-com
+  labels:
+    app: reranking
 spec:
   ports:
   - name: http-reranking
