@@ -35,7 +35,6 @@ data:
       "fiscalYearStartMonth": 0,
       "gnetId": 19831,
       "graphTooltip": 0,
-      "id": 47,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -438,7 +437,7 @@ data:
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "P1809F7CD0C75ACF3"
           },
           "fieldConfig": {
             "defaults": {
@@ -524,13 +523,13 @@ data:
                 "uid": "prometheus"
               },
               "editorMode": "code",
-              "expr": "count(te_request_count{container=\"$model\"})",
-              "legendFormat": "Replicas",
+              "expr": "te_request_count{container=\"$model\", method=\"batch\"}",
+              "legendFormat": "Total request count",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Number of replicas",
+          "title": "Total request count",
           "type": "timeseries"
         },
         {
@@ -1288,6 +1287,6 @@ data:
       "timezone": "browser",
       "title": "Embeddings Inference",
       "uid": "d5c579fd-1d6e-4a7c-8846-9e6bedf5604e",
-      "version": 11,
+      "version": 19,
       "weekStart": ""
     }
