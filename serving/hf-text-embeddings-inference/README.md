@@ -3,53 +3,22 @@ Currently, vLLM does not support embedding or reranking models. Therefore, this
 example demonstrates how to deploy the Hugging Face Text Embeddings Inference
 (TEI) containers.
 
-## Create a Secret
+## Deploy the Helm chart
+### Prerequisites
+Check the values file. If you want to modify the default values, you can either:
+- change the values directly in the `values.yaml` file
+- add them to the helm command using `--set` flags, e.g.: `--set apiKey=<your token>`
+- use a custom values file in the helm command with `-f <your values file>`.
 
-To use an API-Key within your Kubernetes environment, you need to
-create a secret that holds the encoded value of the key. Here's how you can do
-it:
-
-1. Encode the API-Key Before creating the secret, you should base64-encode your
-   API-Key to ensure it is safely stored in Kubernetes. Use the following
-   command to encode your API-Key:
+### Install or update the chart
 ```sh
-echo -n 'your_api_key_here' | base64
+helm upgrade --install <release-name> ./serving/hf-text-embeddings-inference \
+    --namespace <namespace> --create-namespace
 ```
-2. Create the Secret YAML File Next, create a YAML file to define the
-   Kubernetes Secret. Ensure you replace <base64-encoded-api-key> with the
-   actual base64 string you obtained from the previous step. Here’s how you can
-   set up the YAML file:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: hf-text-embeddings-api-key-secret
-type: Opaque
-data:
-  api-key: <base64-encoded-api-key>
-```
-
-Apply the Secret to the namespace where the deployment will be running and to
-the monitoring namespace, like so:
-```sh
-kubectl apply -f secret.yaml -n kubeflow-user-example-com
-kubectl apply -f secret.yaml -n monitoring 
-```
-
-
-## Deploy the Model
-Initiate the deployment from this directory with the following commands:
-```sh
-kubectl apply -f embeddings.yaml
-kubectl apply -f reranking.yaml
-```
-
-
 
 ## Routing
-For this simple example, we are using NodePorts. Please add the following
-settings to your Nginx configuration under `/etc/nginx/nginx.conf` on the host:
+If you configured external access, we are using NodePorts. Please add the following
+settings to your Nginx configuration at `/etc/nginx/nginx.conf` on the host:
 
 ```txt
 
@@ -71,27 +40,83 @@ settings to your Nginx configuration under `/etc/nginx/nginx.conf` on the host:
             proxy_set_header Connection "upgrade";
         }
 ```
+Test the new config and restart Nginx:
+```sh
+sudo nginx -t
+sudo systemctl restart nginx
+```
 
-## Sending Requests
-With NodePort and Nginx configuration, you can send requests to the models as follows:
+## Sending Requests with internal access
+For internal access (ClusterIP), you can send requests to the models as follows:
+
+### Embeddings request:
+```sh
+curl --location 'http://<release-name>-text-embeddings-service.<namespace>.svc.cluster.local/v1/embeddings' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "input": 
+        [
+            "MLOPs might be important"
+        ],
+        "model": "intfloat/multilingual-e5-large-instruct"
+    }'
+```
+
+### Reranking request:
+```sh
+curl "http://<release-name>-reranking-service.<namespace>.svc.cluster.local/v1/reranking" \
+    -d '{
+        "query":"What is MLOPs?", 
+        "texts": [
+            "Deep Learning is not...", 
+            "Deep learning is...", 
+            "Machine Learning Operation is...", 
+            "DevOps seams to be ..."
+        ]
+    }' \
+    -H 'Content-Type: application/json'
+```
+
+## Sending Requests with external access
+For external access (NodePort and Nginx configuration), you can send requests to the models as follows:
 
 ### Embeddings request:
 ```sh
 curl --location '<your host>/v1/embeddings' \
---header 'Content-Type: application/json' \
---header 'Authorization: Bearer <your token>' \
---data '{
-    "input": 
-    [
-        "MLOPs is might be important"
-    ],
-    "model": "intfloat/multilingual-e5-large-instruct"
-}'
+    --header 'Content-Type: application/json' \
+    --header 'Authorization: Bearer <your token>' \
+    --data '{
+        "input": 
+        [
+            "MLOPs might be important"
+        ],
+        "model": "intfloat/multilingual-e5-large-instruct"
+    }'
 ```
-## Request reranking:
+
+### Reranking request:
 ```sh
 curl "<your host>/v1/reranking" \
-    -d '{"query":"What is MLOPs?", "texts": ["Deep Learning is not...", "Deep learning is...", "Machine Learning Operation is...", "DevOps seams to be ..."]}' \
+    -d '{
+        "query":"What is MLOPs?", 
+        "texts": [
+            "Deep Learning is not...", 
+            "Deep learning is...", 
+            "Machine Learning Operation is...", 
+            "DevOps seems to be ..."
+        ]
+    }' \
     -H 'Content-Type: application/json' \
     -H 'Authorization: Bearer <your token>'
+```
+
+## Cleanup
+To delete the release, run:
+```sh
+helm delete <release-name> --namespace <namespace>
+```
+If you modified the Nginx configuration, please remove the added settings from
+`/etc/nginx/nginx.conf` and reload Nginx:
+```sh
+sudo systemctl restart nginx
 ```

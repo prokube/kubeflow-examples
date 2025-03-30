@@ -1,0 +1,9 @@
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: hf-text-embeddings-dashbaord
+#   labels:
+#     grafana_dashboard: "1"  # for the prometheus operator to pick it up
+# data:
+#   19831_rev5.json: |-
+# {{ .Files.Get "dashboard.json" | indent 4 }}

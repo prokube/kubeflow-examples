@@ -2,7 +2,6 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: hf-rerank-model-cache
-  namespace: kubeflow-user-example-com
 spec:
   accessModes:
   - ReadWriteOnce
@@ -16,7 +15,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: reranking-inference
-  namespace: kubeflow-user-example-com
 spec:
   replicas: 1
   selector:
@@ -29,16 +27,16 @@ spec:
     spec:
       containers:
       - name: reranking
-        image: ghcr.io/huggingface/text-embeddings-inference:turing-1.5
+        image: "{{ .Values.reranking.image }}"
         ports:
         - containerPort: 80
         env:
         - name: MODEL_ID
-          value: "BAAI/bge-reranker-v2-m3"
+          value: "{{ .Values.reranking.modelId }}"
         - name: API_KEY
           valueFrom:
             secretKeyRef:
-              name: hf-text-embeddings-api-key-secret
+              name: {{ .Release.Name }}-api-key-secret
               key: api-key
         resources:
           requests:
@@ -60,8 +58,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: reranking-nodeport
-  namespace: kubeflow-user-example-com
+  name: {{ .Release.Name }}-reranking-service
   labels:
     app: reranking
 spec:
@@ -70,30 +67,33 @@ spec:
     port: 80
     protocol: TCP
     targetPort: 80
+    {{- if .Values.externalAccess }}
     nodePort: 32237
+    {{- end }}
   selector:
     app: reranking
   sessionAffinity: None
-  type: NodePort
+  type: {{ if .Values.externalAccess }}NodePort{{ else }}ClusterIP{{ end }}
 ---
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  labels:
-    prometheus: application-monitoring
-  name: reranking-monitoring
-  namespace: monitoring
-spec:
-  endpoints:
-  - interval: 15s
-    path: /metrics
-    port: http-reranking
-    bearerTokenSecret:
-      key: api-key
-      name: hf-text-embeddings-api-key-secret
-  namespaceSelector:
-    matchNames:
-    - kubeflow-user-example-com
-  selector:
-    matchLabels:
-      app: reranking
+# todo: users are currently missing the necessary RBAC permissions to deploy a ServiceMonitor
+
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   labels:
+#     prometheus: application-monitoring
+#   name: reranking-monitoring
+# spec:
+#   endpoints:
+#   - interval: 15s
+#     path: /metrics
+#     port: http-reranking
+#     bearerTokenSecret:
+#       key: api-key
+#       name: {{ .Release.Name }}-api-key-secret
+#   namespaceSelector:
+#     matchNames:
+#     - {{ .Release.Namespace }}
+#   selector:
+#     matchLabels:
+#       app: reranking

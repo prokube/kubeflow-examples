@@ -1,0 +1,10 @@
+apiKey: "your_api_key"
+externalAccess: False
+
+embeddings:
+  image: "ghcr.io/huggingface/text-embeddings-inference:86-1.6"
+  modelId: "BAAI/bge-m3"
+
+reranking:
+  image: "ghcr.io/huggingface/text-embeddings-inference:86-1.6"
+  modelId: "BAAI/bge-reranker-v2-m3"
