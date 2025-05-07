@@ -1,17 +1,17 @@
-name: Build Llama Image
+name: Build Minimal Mnist Image
 
 on:
   workflow_dispatch:
 
 env:
-  DOCKERFILE_PATH: "images/llama2-chat-predictor/Dockerfile"
-  BUILD_CONTEXT_DIR: "images/llama2-chat-predictor/"
-  IMAGE_NAME: "mlflow-server"
+  DOCKERFILE_PATH: "images/minimal-mnist/Dockerfile"
+  BUILD_CONTEXT_DIR: "images/minimal-mnist/"
+  IMAGE_NAME: "minimal-mnist"
   IMAGE_PUSH_PATH: "${{ secrets.GCP_ARTIFACT_REGISTRY_PATH }}"
   IMAGE_PUSH_SECRET: "${{ secrets.GCP_SA_KEY }}"
 
 jobs:
-  llama-image:
+  build-image:
     runs-on: ubuntu-latest
     steps:
       - name: Delete huge unnecessary tools folder
@@ -32,7 +32,7 @@ jobs:
           username: _json_key
           password: ${{ env.IMAGE_PUSH_SECRET }}
 
-      - name: Build Llama image
+      - name: Build image
         run: |
           LATEST_TAG=${{ env.IMAGE_PUSH_PATH }}/${{ env.IMAGE_NAME }}:latest
           COMMIT_TAG=${{ env.IMAGE_PUSH_PATH }}/${{ env.IMAGE_NAME }}:commit-${{ github.sha }}
