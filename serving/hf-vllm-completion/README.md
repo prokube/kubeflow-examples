@@ -22,9 +22,33 @@ MODEL_NAME=qwen
 INFERENCE_SERVICE_NAME=qwen-inf-serv
 
 curl -v https://$SERVICE_HOST/serving/${NAMESPACE}/${INFERENCE_SERVICE_NAME}/openai/v1/chat/completions \
+     -H "content-type: application/json" \
+     -H "Host: ${SERVICE_HOST}" \
+     -H "x-api-key: ${X_API_KEY}" \
+     -d @- <<EOF
+{
+  "model": "${MODEL_NAME}",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are an assistant."
+    },
+    {
+      "role": "user",
+      "content": "I love MLOps!"
+    }
+  ],
+  "guided_choice": ["positive", "negative"]
+}
+EOF
+
 ```
 
 You can also get the model endpoint route (`https://$SERVICE_HOST/serving/${NAMESPACE}/${INFERENCE_SERVICE_NAME}`) from the Endpoints UI in Kubeflow.
+
+KServe 0.15+ supports a lot of vLLM-specific features with the provided json input. `guided_choice` is given as an example here. 
+
+You can find further example [here](https://kserve.github.io/website/latest/modelserving/v1beta1/llm/huggingface/text_generation/#check-inferenceservice-status_1).
 
 ## Deploying with huggingface backend on a CPU cluster
 If a GPU is not available, Huggingface Backend will be used by default (KServe currently (v0.15.0) does not support vLLM backend for CPU clusters). If your cluster is CPU only, you can use the following example as a starting point:
@@ -49,7 +73,7 @@ curl -v https://$SERVICE_HOST/serving/${NAMESPACE}/${INFERENCE_SERVICE_NAME}/v1/
      -H "x-api-key: ${X_API_KEY}" \
      -d '{
      "instances": ["vLLM is wonderful!"]
-   }
+   }'
 ```
 
 ## Deploying a model from a huggingface gated repo
