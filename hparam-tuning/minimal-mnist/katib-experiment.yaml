@@ -51,7 +51,7 @@ spec:
         reference: gamma
       - name: c
         description: Regularization parameter
-        reference: c 
+        reference: c
       - name: kernel
         description: Specifies the kernel type to be used in the algorithm
         reference: kernel
@@ -82,4 +82,3 @@ spec:
                     memory: "1Gi"
                     cpu: "0.5"
             restartPolicy: Never
-

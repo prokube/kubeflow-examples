@@ -1,6 +1,19 @@
 # kubeflow-examples
 Kubeflow examples - Notebooks, Pipelines, Models, Model tuning and more
 
+## Brief description
+```py
+.
+├── .github          # workflows to build images
+├── data             # data for some of the examples
+├── hparam-tuning    # katib example
+├── images           # images for some of the examples
+├── mlflow           # mlflow examples (simple jupyter notebook with mlflow and kfp + mlflow example)
+├── notebooks        # dask example and an advanced jupyter notebook example
+├── pipelines        # kubeflow pipelines examples
+├── serving          # KServe examples
+```
+
 ## Note about storage
 Storage on k8s is a complex topic and deep dive is outside of scope of this repository. There are two types of
 storage you might encounter here - block and object storage.
@@ -11,9 +24,9 @@ Kubeflow Notebook volumes.
 
 ### Object storage
 Object storage is any S3-like type of storage. Kubeflow Pipelines use object storage 
-extensively to store intermediate and final task/pipeline artefacts. Furthermore, KServe can be configured
+extensively to store intermediate and final task/pipeline artifacts. Furthermore, KServe can be configured
 to serve models directly from object storage.
-Kubeflow (if deployed via[manifests](https://github.com/kubeflow/manifests)) comes with [MinIO](https://min.io/) 
+Kubeflow (if deployed via [manifests](https://github.com/kubeflow/manifests)) comes with [MinIO](https://min.io/) 
 built in. Due to MinIO license change the bundled version is quite old, but still functional. Alternatively, 
 admins can configure Kubeflow Pipelines to use other instances of object storage (e.g. self-served MinIO, AWS S3, 
 GCS, etc.). Relevant for end users it to know that many S3 libraries use environmental variables for their 

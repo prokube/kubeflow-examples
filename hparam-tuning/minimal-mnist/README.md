@@ -13,8 +13,7 @@ the corresponding image directory `./images/minimal-mnist/`:
 4. Define the experiment YAML file for the Katib experiment.
 
 For building the image (Step 3), instructions are available in the same 
-directory. Additionally, this image will be automatically built by the Gitlab 
-runner upon pushing this repository to Gitlab.
+directory.
 
 For Step 4, you can use the example provided in this directory.
 
@@ -38,4 +37,3 @@ To delete the experiment from your Kubernetes cluster, run:
 ```sh
 kubectl delete -f katib-experiment.yaml
 ```
-
