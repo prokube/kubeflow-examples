@@ -1,0 +1,3 @@
+kserve==0.14.0
+transformers[torch]
+python-dotenv

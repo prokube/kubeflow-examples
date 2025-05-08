@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: custom-lm-hf-token
+data:
+  HUGGINGFACE_API_TOKEN: "${HUGGINGFACE_API_TOKEN}"
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: custom-lm
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: igkvc/kserve-lm:v1
+        env:
+          - name: HUGGINGFACE_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: custom-lm-hf-token
+                key: HUGGINGFACE_API_TOKEN
+        ports:
+          - containerPort: 8080  # otherwise kserve looks for Procfile entrypoint
