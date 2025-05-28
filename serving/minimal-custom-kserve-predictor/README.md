@@ -78,5 +78,5 @@ curl -X POST \
   -d '{"instances": ["prokube", "works"]}'
 ```
 
-If you don't know your API key, reach out to your admin, he'll know what to do.
+If you don't know your API key, reach out to your admin, who will know what to do.
 
