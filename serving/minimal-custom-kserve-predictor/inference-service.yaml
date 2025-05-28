@@ -1,0 +1,14 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: minimal-custom-transformer
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: <YOUR IMAGE>
+        env:
+        - name: MODEL_NAME
+          value: "capitalizer"
+        - name: COMPONENT_TYPE
+          value: "predictor"
