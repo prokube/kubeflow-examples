@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configuration": [
+    {
+      "name": "Python Debugger: Transformer",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        "--predictor_host",
+        "https://public-shastasaurus.prokube.cloud/serving/prokube-demo-profile/triple-minimal-custom-scale-predictor",
+        "--db_url",
+        "postgresql://transformer-admin:g0FRi19npDdfwcDfAZp5l9hf@localhost:5432/scale-inference",
+        "--model_name",
+        "tripler"
+      ]
+    }
+  ]
+}
