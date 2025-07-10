@@ -18,3 +18,12 @@ spec:
     serviceAccountName: default-editor
     imagePullSecrets:
     - name: regcred-prokube-dev
+  transformer:
+    containers:
+    - image: 'europe-west3-docker.pkg.dev/prokube-internal/prokube-dev/persistant-transformer:latest'
+      name: persist-transformer-container
+      args:
+      - --db_url
+      - 'postgresql://transformer-admin:g0FRi19npDdfwcDfAZp5l9hf@inferencing-postgres-primary.prokube-demo-profile.svc:5432/scale-inference'
+    imagePullSecrets:
+    - name: regcred-prokube-dev
