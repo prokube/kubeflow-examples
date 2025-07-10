@@ -8,10 +8,7 @@ from logging import shutdown
 from typing import Dict, List
 
 import asyncpg
-from fastapi import requests
 
-REQUEST_TABLE = "requests"
-RESPONSE_TABLE = "response"
 logger = logging.getLogger(__name__)
 
 

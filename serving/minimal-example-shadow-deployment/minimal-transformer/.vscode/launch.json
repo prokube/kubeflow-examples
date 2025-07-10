@@ -1,18 +1,20 @@
 {
   "version": "0.2.0",
-  "configuration": [
+  "configurations": [
     {
-      "name": "Python Debugger: Transformer",
+      "name": "Python Debugger: Debug custom transformer",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
+      "python": "${workspaceFolder}/.venv/bin/python3",
+      "console": "integratedTerminal",
       "args": [
         "--predictor_host",
-        "https://public-shastasaurus.prokube.cloud/serving/prokube-demo-profile/triple-minimal-custom-scale-predictor",
+        "https://public-shastasaurus.prokube.cloud/serving/prokube-demo-profile/doubler-minimal-custom-scale-predictor",
         "--db_url",
-        "postgresql://transformer-admin:g0FRi19npDdfwcDfAZp5l9hf@localhost:5432/scale-inference",
+        "postgresql://transformer-admin:g0FRi19npDdfwcDfAZp5l9hf@127.0.0.1:5432/scale-inference",
         "--model_name",
-        "tripler"
+        "doubler"
       ]
     }
   ]

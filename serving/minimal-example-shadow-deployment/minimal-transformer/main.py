@@ -29,6 +29,7 @@ class PersistTransformer(kserve.Model):
         super().__init__(name)
         self.predictor_host = predictor_host
         self.postges_db_handler = PredictionDBHandler(db_url)
+        self.ready = True
 
     def preprocess(self, inputs: Dict, headers: Dict[str, str]):
         if REQUEST_ID not in headers:
@@ -56,12 +57,7 @@ class PersistTransformer(kserve.Model):
 
 
 parser = argparse.ArgumentParser(parents=[model_server.parser])
-parser.add_argument(
-    "--predictor_host", help="The URL for the model predict function", required=True
-)
 parser.add_argument("--db_url", help="Postgres URI", required=True)
-
-parser.add_argument("--model_name", help="The name that the model is served under.")
 
 args, _ = parser.parse_known_args()
 
