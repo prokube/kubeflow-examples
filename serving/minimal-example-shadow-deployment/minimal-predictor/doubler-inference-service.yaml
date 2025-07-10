@@ -1,0 +1,20 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: double-minimal-custom-scale-predictor
+  namespace: prokube-demo-profile
+spec:
+  predictor:
+    containers:
+    - name: scale-predictor-container
+      image: 'europe-west3-docker.pkg.dev/prokube-internal/prokube-dev/scale-predictor:latest'
+      env:
+      - name: MODEL_NAME
+        value: "doubler"
+      - name: FACTOR
+        value: "2"
+      - name: COMPONENT_TYPE
+        value: "predictor"
+    serviceAccountName: default-editor
+    imagePullSecrets:
+    - name: regcred-prokube-dev
