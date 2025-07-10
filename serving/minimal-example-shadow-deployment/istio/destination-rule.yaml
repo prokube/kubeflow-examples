@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: scale-predictor
+spec:
+  host:
+  subsets:
+  - name: v1
+    labels:
+      serving.kserve.io/inferenceservice: double-minimal-custom-scale-predictor
+  - name: v2
+    labels:
+      serving.kserve.io/inferenceservice: triple-minimal-custom-scale-predictor
