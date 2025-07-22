@@ -17,7 +17,7 @@ class PredictionDBHandler:
         self,
         db_url: str,
         response_table_name: str = "inference_response",
-        request_table_name: str = "inference_request",
+        request_table_name: str = "inference_requests",
     ):
         self.db_url = db_url
         self.response_table_name = response_table_name
@@ -40,10 +40,9 @@ class PredictionDBHandler:
         self.shutdown()
 
     def initialize_database_table(self):
-        request_query = (
-            f"""INSERT INTO {self.request_table_name}(request_id,request_time,request_data) VALUES($1,$2,$3,$4, NOW())""",
-        )
+        request_query = f"""INSERT INTO {self.request_table_name}(request_id,request_time,request_data,predict_url,created_at)VALUES($1,$2,$3,$4, NOW())"""
         response_query = f"""INSERT INTO {self.request_table_name}(request_id,response_data,created_at) VALUES($1,$2, NOW())"""
+
         return request_query, response_query
 
     async def initialize_pool(self):
@@ -56,8 +55,8 @@ class PredictionDBHandler:
                     self.request_query,
                     request_id,
                     request_time,
-                    predict_url,
                     request_data,
+                    predict_url,
                 )
             )
 
@@ -103,7 +102,7 @@ class PredictionDBHandler:
         try:
             async with self.pool.acquire() as con:
                 for query in batch:
-                    await con.execute(query[0], query[1:])
+                    await con.execute(*query)
 
         except Exception as e:
             logger.error("Database error: %s", e)

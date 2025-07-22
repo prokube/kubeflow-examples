@@ -1,6 +1,8 @@
 import argparse
 import base64
+import calendar
 import io
+import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -41,7 +43,7 @@ class PersistTransformer(kserve.Model):
                 headers[REQUEST_ID],
                 datetime.now(timezone.utc),
                 self.predictor_host,
-                inputs,
+                json.dumps(inputs),
             )
         return inputs
 
@@ -52,7 +54,9 @@ class PersistTransformer(kserve.Model):
                 REQUEST_ID,
             )
         else:
-            self.postges_db_handler.queue_response(headers[REQUEST_ID], inputs)
+            self.postges_db_handler.queue_response(
+                headers[REQUEST_ID], json.dumps(inputs)
+            )
         return inputs
 
 
