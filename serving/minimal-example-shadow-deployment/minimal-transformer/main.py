@@ -16,7 +16,7 @@ from PredictionDBHandler import PredictionDBHandler
 
 logging.basicConfig(level=kserve.constants.KSERVE_LOGLEVEL)
 
-REQUEST_ID = "request_id"
+REQUEST_ID = "x-request-id"
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,16 @@ class PersistTransformer(kserve.Model):
     ):
         super().__init__(name)
         self.predictor_host = predictor_host
+        if self.predictor_host is None:
+            raise ValueError("Predictor host is not set")
         self.postges_db_handler = PredictionDBHandler(db_url)
+
+        logger.debug("Predictor host url: %s", self.predictor_host)
         self.ready = True
 
     def preprocess(self, inputs: Dict, headers: Dict[str, str]):
+        logger.debug("Request headers: %s", headers)
+
         if REQUEST_ID not in headers:
             logger.error(
                 "Request: Header %s not found! Continue without storeing...", REQUEST_ID

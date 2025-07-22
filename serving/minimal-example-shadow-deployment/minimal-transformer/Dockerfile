@@ -12,5 +12,6 @@ COPY ./pyproject.toml .
 RUN pip install .
 
 COPY main.py .
+COPY PredictionDBHandler.py .
 
 ENTRYPOINT ["python", "main.py"]

@@ -28,6 +28,13 @@ class PredictionDBHandler:
         self.pool = None
         self.batch_size = 50
         self.batch_timeout = 5.0  # seconds
+
+        logger.debug(
+            "Initials queue with %d elements and timout of %d seconds",
+            self.batch_size,
+            self.batch_timeout,
+        )
+
         self.prediction_queue = []
         self.queue_lock = threading.Lock()
         self.executor = ThreadPoolExecutor(max_workers=5)
@@ -47,6 +54,10 @@ class PredictionDBHandler:
 
     async def initialize_pool(self):
         self.pool = await asyncpg.create_pool(self.db_url)
+
+        # Don't print user credentials
+        database_uri = self.db_url.split("@")[-1]
+        logger.debug("Connection pool connected to %s", database_uri)
 
     def queue_request(self, request_id, request_time, predict_url, request_data):
         with self.queue_lock:
@@ -102,6 +113,7 @@ class PredictionDBHandler:
         try:
             async with self.pool.acquire() as con:
                 for query in batch:
+                    logger.debug("Send query: %s", query)
                     await con.execute(*query)
 
         except Exception as e:
