@@ -23,7 +23,7 @@ spec:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 1Gi
+          storage: 4Gi
     name: instance1
     replicas: 1
     resources:
