@@ -48,7 +48,7 @@ class PredictionDBHandler:
 
     def initialize_database_table(self):
         request_query = f"""INSERT INTO {self.request_table_name}(request_id,request_time,request_data,predict_url,created_at)VALUES($1,$2,$3,$4, NOW())"""
-        response_query = f"""INSERT INTO {self.request_table_name}(request_id,response_data,created_at) VALUES($1,$2, NOW())"""
+        response_query = f"""INSERT INTO {self.response_table_name}(request_id,response_data,created_at) VALUES($1,$2, NOW())"""
 
         return request_query, response_query
 
