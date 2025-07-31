@@ -20,7 +20,7 @@ class DataGenerator:
             "Here are some random useless lines of text.",
             "Line 1: MLOps is an important topic.",
             "Line 2: Kubeflow Pipeline are hard to debug, sometimes.",
-            "Line 3: prokube.ai seams to be a nice company."
+            "Line 3: prokube.ai seems to be a nice company."
         ]
         
         logger.success(f"✅ Created {len(lines)} sample lines")
