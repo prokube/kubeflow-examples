@@ -4,14 +4,11 @@ import debugpy
 
 
 @component(base_image="hsteude/pipe-fiction:latest", packages_to_install=["debugpy"])
-def generate_data_comp() -> List:
-    import os
-
-    if os.getenv("KFP_DEBUG") == "true":
+def generate_data_comp(remote_debugging: bool = False) -> List:
+    if remote_debugging:
         import debugpy
 
-        debug_port = int(os.getenv("KFP_DEBUG_PORT", "5678"))
-        debugpy.listen(("0.0.0.0", debug_port))
+        debugpy.listen(("0.0.0.0", 5678))
         debugpy.wait_for_client()
 
     from pipe_fiction.data_generator import DataGenerator
@@ -20,19 +17,16 @@ def generate_data_comp() -> List:
     lines = generator.create_sample_data()
     return lines
 
+
 @component(
     base_image="hsteude/pipe-fiction:latest",
     packages_to_install=["debugpy"],
 )
-def process_data_comp(lines: List[str]) -> List[str]:
-    import os
-
-    if os.getenv("KFP_DEBUG") == "true":
-        import os
+def process_data_comp(lines: List[str], remote_debugging: bool = False) -> List[str]:
+    if remote_debugging:
         import debugpy
 
-        debug_port = int(os.getenv("KFP_DEBUG_PORT", "5678"))
-        debugpy.listen(("0.0.0.0", debug_port))
+        debugpy.listen(("0.0.0.0", 5678))
         debugpy.wait_for_client()
 
     from pipe_fiction.data_processor import DataProcessor

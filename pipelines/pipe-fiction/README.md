@@ -194,9 +194,7 @@ Note that this workflow also works inside Kubeflow notebooks.
 
 **Advantages:**
 - Fastest execution - no container overhead
-- Direct debugging - breakpoints work immediately
 - Live code changes - no rebuilds needed
-- Full IDE integration - all debugging features available
 - Local Package Access - SubprocessRunner uses the package installed in the local .venv
 - No Image Rebuilds - Code changes are immediately available without Docker builds
 
@@ -205,6 +203,7 @@ Note that this workflow also works inside Kubeflow notebooks.
 - Dependency conflicts - uses local Python environment
 - Limited isolation - no containerization benefits
 - Lightweight components only - this does not work for container components
+- Remote debugging required - CLI-based debuggers (like `pdb` with `breakpoint()`) work directly, but IDE debugging requires remote debugging setup
 
 ### 2. Docker Runner (Container-based Development)
 
@@ -262,16 +261,14 @@ python submit_to_cluster.py
 
 For pipeline-only changes:
 1. Modify files in `pipelines/` directory
-2. Set the env var KFP_DEBUG to true for the task you want to debug:
-   `task.set_env_variable("KFP_DEBUG", "True")` (See remote debugging section for more details on how to connect the debugger)
+2. Enable remote debugging for the task you want to debug (see remote debugging section for details)
 3. Submit directly to cluster: `python submit_to_cluster.py`
 
 For custom package changes:
 1. Modify code in `pipe-fiction-codebase/`
 2. Rebuild and push Docker image: `docker build -t <your-registry>/<your-image-name>:<your-tag> . && docker push`
 3. Update image reference in pipeline components
-4. Set the env var KFP_DEBUG to true for the task you want to debug:
-   `task.set_env_variable("KFP_DEBUG", "True")` (See remote debugging section for more details)
+4. Enable remote debugging for the task you want to debug (see remote debugging section for details)
 5. Submit pipeline to cluster
 
 **Advantages:**
@@ -286,25 +283,24 @@ For custom package changes:
 
 ## Remote Debugging
 
-As indicated above, you can use your preferred way of debugging Python code in the custom Python package, and for pipelines executed locally using the subprocess runner. However, as soon as the code is run in containers, we need a remote debugging setup.
+All debugging across environments (SubprocessRunner, DockerRunner, and cluster execution) now uses remote debugging with [debugpy](https://github.com/microsoft/debugpy) for IDE integration. For CLI-based debugging, `breakpoint()` still works directly with the SubprocessRunner.
 
-In this demo we use [debugpy](https://github.com/microsoft/debugpy). So we start a debugging server inside the component:
+### Component Setup
+
+Components are configured with a `remote_debugging` parameter to enable debug mode:
 
 ```python
-@component(packages_to_install=["debugpy"])
-def your_component_name():
-    import os
-
-    if os.getenv("KFP_DEBUG") == "true":
+@component(base_image="<your-registry>/<your-image-name>:<your-tag>", packages_to_install=["debugpy"])
+def your_component_name(remote_debugging: bool = False):
+    if remote_debugging:
         import debugpy
-
-        debug_port = int(os.getenv("KFP_DEBUG_PORT", "5678"))
-        debugpy.listen(("0.0.0.0", debug_port))
+        debugpy.listen(("0.0.0.0", 5678))
         debugpy.wait_for_client()
-     ...
+    
+    # Your component logic here...
 ```
 
-The debug server then waits until a debugger connects. This can for example be done with VS Code like so:
+### VS Code Setup
 
 Create `.vscode/launch.json`:
 
@@ -313,7 +309,18 @@ Create `.vscode/launch.json`:
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Remote Attach",
+            "name": "Pipeline: Remote SubprocessRunner",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "justMyCode": false,
+            "subProcess": true
+        },
+        {
+            "name": "Pipeline: Remote KFP/DockerRunner",
             "type": "debugpy",
             "request": "attach",
             "connect": {
@@ -322,7 +329,7 @@ Create `.vscode/launch.json`:
             },
             "pathMappings": [
                 {
-                    "localRoot": "${workspaceFolder}/../pipe-fiction-codebase",
+                    "localRoot": "${workspaceFolder}/pipe-fiction-codebase",
                     "remoteRoot": "/app"
                 }
             ],
@@ -333,50 +340,48 @@ Create `.vscode/launch.json`:
 }
 ```
 
-If you now run the pipeline in Docker by executing `python run_locally_in_docker.py`, the code will wait until you open this project in VS Code and hit the debug button. Note that you'll need to have the [Python debugging extension](https://code.visualstudio.com/docs/python/debugging) installed in VS Code.
-
 ### Debugging Workflow
 
 1. **Enable debug mode:**
    
-   For local run in Docker:
+   Pass `remote_debugging=True` to your component when calling it in the pipeline:
    ```python
-   # In run_locally_in_docker.py
-   environment={'KFP_DEBUG': 'true'}
-   ```
-   
-   For execution in KFP:
-   ```python
-   # In the pipeline.py file 
-   task.set_env_variable("KFP_DEBUG", "True")
+   # In your pipeline definition
+   task = your_component_name(remote_debugging=True)
    ```
 
 2. **Start the pipeline:**
    
-   Locally:
+   SubprocessRunner:
+   ```bash
+   python run_locally_in_subproc.py
+   ```
+   
+   DockerRunner:
    ```bash
    python run_locally_in_docker.py
    ```
 
-   In KFP cluster:
+   Cluster:
    ```bash
    python run_in_k8s_cluster.py
    ```
 
 3. **Connect debugger:**
    - Pipeline will pause and wait for debugger connection
-   - Attach your IDE debugger to `localhost:5678`
-   - In the `run_locally_in_docker.py` the port settings are already set such that it works. However, for KFP you'll need to create a port forwarding from the component's pod to your machine (see next section)
+   - Use the appropriate VS Code configuration to attach:
+     - "Pipeline: Remote SubprocessRunner" for subprocess execution
+     - "Pipeline: Remote KFP/DockerRunner" for Docker and cluster execution
 
 4. **Debug interactively:**
-   
-   Now debugging should work as you know it:
    - Set breakpoints in your pipeline components or the code package that gets imported
    - Step through code execution
    - Inspect variables and data structures
    - Debug both pipeline logic and imported modules
 
 ### Cluster Debugging with Port Forwarding
+
+For cluster execution, you'll need port forwarding:
 
 ```bash
 # Find your pipeline pod
@@ -385,8 +390,7 @@ kubectl get pods | grep your-pipeline
 # Forward debug port
 kubectl port-forward pod/your-pod-name 5678:5678
 
-# Connect local debugger to remote pod
-# Use the same VS Code configuration
+# Connect local debugger using the "Pipeline: Remote KFP/DockerRunner" configuration
 ```
 
 ## Technical Implementation Notes
@@ -405,7 +409,7 @@ These patches provide forward compatibility and will be obsolete when upgrading 
 ### Debugging Architecture
 
 The debugging setup works by:
-1. **Injecting debugpy** into pipeline components
-2. **Port forwarding** from container to host
-3. **Path mapping** between local IDE and remote container
-4. **Environment control** for enabling/disabling debug mode
+1. **Injecting debugpy** into pipeline components via the `remote_debugging` parameter
+2. **Port forwarding** from container to host (for Docker/cluster execution)
+3. **Path mapping** between local IDE and remote container (for Docker/cluster execution)
+4. **Unified debugging experience** across all execution environments

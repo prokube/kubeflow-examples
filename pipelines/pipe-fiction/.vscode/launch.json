@@ -2,7 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Remote Attach",
+            "name": "Pipeline: Remote SubprocessRunner",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "justMyCode": false,
+            "subProcess": true
+        },
+        {
+            "name": "Pipeline: Remote KFP/DockerRunner",
             "type": "debugpy",
             "request": "attach",
             "connect": {
