@@ -5,7 +5,7 @@ This module patches older versions of KFP that don't have built-in port/environm
 to match the upstream 2.14+ API. Import this module BEFORE using DockerRunner with ports/environment.
 
 Usage (exactly like upstream KFP 2.14+):
-    import kfp_docker_patches  # Apply patches
+    import kfp_docker_monkey_patches  # Apply patches
     from kfp import local
     
     # Explicit ports and environment (upstream-compatible API)
