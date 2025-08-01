@@ -23,4 +23,5 @@ client = Client(host=f"{os.environ['KUBEFLOW_ENDPOINT']}/pipeline", namespace=na
 
 run = client.create_run_from_pipeline_func(
     example_pipeline,
+    enable_caching=False
 )
