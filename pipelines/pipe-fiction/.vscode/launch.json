@@ -13,7 +13,7 @@
             "subProcess": true
         },
         {
-            "name": "Pipeline: Remote KFP/DockerRunner",
+            "name": "Pipeline: Remote Debugging",
             "type": "debugpy",
             "request": "attach",
             "connect": {
