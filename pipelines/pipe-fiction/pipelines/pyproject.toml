@@ -9,7 +9,9 @@ dependencies = [
     "docker>=7.1.0",
     "ipdb>=0.13.13",
     "kfp==2.7",
+    "loguru>=0.7.2",
     "pdbpp>=0.11.7",
     "pip>=25.1.1",
+    "remote-pdb>=2.1.0",
     "truststore>=0.10.3",
 ]

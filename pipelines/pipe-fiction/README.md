@@ -285,14 +285,50 @@ For custom package changes:
 
 All debugging across environments (SubprocessRunner, DockerRunner, and cluster execution) now uses remote debugging with [debugpy](https://github.com/microsoft/debugpy) for IDE integration. For CLI-based debugging, `breakpoint()` still works directly with the SubprocessRunner.
 
-### Component Setup
+### Debuggable Component Decorator (Recommended)
 
-Components are configured with a `remote_debugging` parameter to enable debug mode:
+The easiest way to enable debugging is using our custom `@lightweight_debuggable_component` decorator that automatically injects debugging code:
+
+```python
+from utils.debuggable_component import lightweight_debuggable_component
+
+@lightweight_debuggable_component(base_image="<your-registry>/<your-image-name>:<your-tag>")
+def your_component_name(debug: bool = False):
+    # Your component logic here - debugging code is auto-injected!
+    from pipe_fiction.data_processor import DataProcessor
+    processor = DataProcessor()
+    return processor.process()
+```
+
+**Features:**
+- Automatic debugging code injection (no boilerplate)
+- Supports both `debugpy` (VS Code) and `remote-pdb` (CLI) debuggers
+- Configurable debug ports
+- Works with all KFP component parameters
+
+**Usage examples:**
+```python
+# Default debugpy on port 5678
+@lightweight_debuggable_component(base_image="my-image:latest")
+def my_component(debug: bool = False): ...
+
+# Remote pdb on custom port
+@lightweight_debuggable_component(
+    base_image="my-image:latest",
+    debugger_type="remote-pdb",
+    debug_port=4444
+)
+def my_component(debug: bool = False): ...
+```
+
+### Manual Component Setup (Alternative)
+
+For manual setup or when not using the decorator, components can be configured with debugging code directly:
 
 ```python
 @component(base_image="<your-registry>/<your-image-name>:<your-tag>", packages_to_install=["debugpy"])
-def your_component_name(remote_debugging: bool = False):
-    if remote_debugging:
+def your_component_name(debug: bool = False):
+    if debug:
         import debugpy
         debugpy.listen(("0.0.0.0", 5678))
         debugpy.wait_for_client()
@@ -344,10 +380,10 @@ Create `.vscode/launch.json`:
 
 1. **Enable debug mode:**
    
-   Pass `remote_debugging=True` to your component when calling it in the pipeline:
+   Pass `debug=True` to your component when calling it in the pipeline:
    ```python
    # In your pipeline definition
-   task = your_component_name(remote_debugging=True)
+   task = your_component_name(debug=True)
    ```
 
 2. **Start the pipeline:**

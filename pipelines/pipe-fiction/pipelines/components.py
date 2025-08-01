@@ -1,16 +1,12 @@
-from kfp.dsl import Output, Dataset, Input, component
 from typing import List, Dict
-import debugpy
+
+from utils.debuggable_component import (
+    lightweight_debuggable_component,
+)
 
 
-@component(base_image="hsteude/pipe-fiction:latest", packages_to_install=["debugpy"])
-def generate_data_comp(remote_debugging: bool = False) -> List:
-    if remote_debugging:
-        import debugpy
-
-        debugpy.listen(("0.0.0.0", 5678))
-        debugpy.wait_for_client()
-
+@lightweight_debuggable_component(base_image="hsteude/pipe-fiction:latest")
+def generate_data_comp(debug: bool = False) -> List:
     from pipe_fiction.data_generator import DataGenerator
 
     generator = DataGenerator()
@@ -18,17 +14,10 @@ def generate_data_comp(remote_debugging: bool = False) -> List:
     return lines
 
 
-@component(
+@lightweight_debuggable_component(
     base_image="hsteude/pipe-fiction:latest",
-    packages_to_install=["debugpy"],
 )
-def process_data_comp(lines: List[str], remote_debugging: bool = False) -> List[str]:
-    if remote_debugging:
-        import debugpy
-
-        debugpy.listen(("0.0.0.0", 5678))
-        debugpy.wait_for_client()
-
+def process_data_comp(lines: List[str], debug: bool = False) -> List[str]:
     from pipe_fiction.data_processor import DataProcessor
 
     processor = DataProcessor()
