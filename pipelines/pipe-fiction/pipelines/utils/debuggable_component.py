@@ -18,12 +18,13 @@ from loguru import logger
 def lightweight_debuggable_component(
     debugger_type: Literal["debugpy", "remote-pdb"] = "debugpy",
     debug_port: int = 5678,
+    auto_install_packages: bool = True,
     **component_kwargs
 ):
     """
     Decorator that creates KFP Lightweight Components with automatic debugging code injection.
     
-    ⚠️  LIGHTWEIGHT COMPONENTS ONLY - Does not work with Container Components!
+    LIGHTWEIGHT COMPONENTS ONLY - Does not work with Container Components!
     
     This decorator automatically injects debugging code into your component functions,
     eliminating the need to manually add debugging boilerplate.
@@ -59,18 +60,21 @@ def lightweight_debuggable_component(
             source_path = Path("<unknown>")
             logger.warning(f"Processing component '{func.__name__}' from unknown source")
         
-        # Determine debugger package to install
-        debugger_package = debugger_type
-        packages_to_install = component_kwargs.get("packages_to_install", [])
-        
-        # Always add loguru for better logging in components
-        if "loguru" not in packages_to_install:
-            packages_to_install.append("loguru")
-        
-        if debugger_package not in packages_to_install:
-            packages_to_install.append(debugger_package)
-            component_kwargs["packages_to_install"] = packages_to_install
-            logger.debug(f"Added {debugger_package} to packages_to_install")
+        # Determine debugger package to install (only if auto_install_packages is True)
+        if auto_install_packages:
+            debugger_package = debugger_type
+            packages_to_install = component_kwargs.get("packages_to_install", [])
+            
+            # Always add loguru for better logging in components
+            if "loguru" not in packages_to_install:
+                packages_to_install.append("loguru")
+            
+            if debugger_package not in packages_to_install:
+                packages_to_install.append(debugger_package)
+                component_kwargs["packages_to_install"] = packages_to_install
+                logger.debug(f"Added {debugger_package} to packages_to_install")
+        else:
+            logger.debug("Skipping automatic package installation (auto_install_packages=False)")
         
         # Get the original function source code
         try:
@@ -103,10 +107,56 @@ def lightweight_debuggable_component(
                 func_start_line = target_func_node.lineno - 1  # AST uses 1-based line numbers
                 lines = source_code.split('\n')
                 
-                # Find first line of function body
-                body_start = func_start_line + 1
+                # Find the line with ':' that ends the function signature
+                # We need to find where the function signature actually ends
+                colon_line = func_start_line
+                paren_count = 0
+                found_opening_paren = False
+                
+                while colon_line < len(lines):
+                    line = lines[colon_line]
+                    for char in line:
+                        if char == '(':
+                            paren_count += 1
+                            found_opening_paren = True
+                        elif char == ')':
+                            paren_count -= 1
+                        elif char == ':' and found_opening_paren and paren_count == 0:
+                            # Found the colon that ends the function signature
+                            break
+                    else:
+                        # If we didn't break out of the inner loop, continue to next line
+                        colon_line += 1
+                        continue
+                    # If we broke out of the inner loop, we found our colon
+                    break
+                
+                # Find first non-empty line after the colon (skip docstring if present)
+                body_start = colon_line + 1
                 while body_start < len(lines) and not lines[body_start].strip():
                     body_start += 1
+                
+                # If the first non-empty line is a docstring, skip it
+                if (body_start < len(lines) and 
+                    lines[body_start].strip().startswith(('"""', "'''", 'r"""', "r'''"))):
+                    # Find the end of the docstring
+                    quote_type = lines[body_start].strip()[:3]
+                    if quote_type.startswith('r'):
+                        quote_type = quote_type[1:]
+                    
+                    # Check if docstring ends on the same line
+                    if lines[body_start].strip().endswith(quote_type) and len(lines[body_start].strip()) > 3:
+                        body_start += 1
+                    else:
+                        # Multi-line docstring - find the end
+                        body_start += 1
+                        while body_start < len(lines) and not lines[body_start].strip().endswith(quote_type):
+                            body_start += 1
+                        body_start += 1  # Move past the closing quotes
+                    
+                    # Find next non-empty line after docstring
+                    while body_start < len(lines) and not lines[body_start].strip():
+                        body_start += 1
                 
                 if body_start >= len(lines):
                     logger.warning("Could not find function body, using fallback") 
@@ -214,7 +264,3 @@ def lightweight_debuggable_component(
         return component_func
     
     return decorator
-
-
-# Backward compatibility alias
-debuggable_component = lightweight_debuggable_component
