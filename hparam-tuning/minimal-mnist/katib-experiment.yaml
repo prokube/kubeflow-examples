@@ -44,6 +44,7 @@ spec:
     collector:
       kind: StdOut
   trialTemplate:
+    retain: true
     primaryContainerName: training-container
     trialParameters:
       - name: gamma
