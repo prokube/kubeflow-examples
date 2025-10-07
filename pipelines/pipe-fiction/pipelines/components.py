@@ -1,11 +1,18 @@
-from typing import List, Dict
+import os
+from typing import List
 
 from utils.debuggable_component import (
     lightweight_debuggable_component,
 )
 
 
-@lightweight_debuggable_component(base_image="hsteude/pipe-fiction:latest")
+BASE_IMAGE = os.getenv("IMAGE_TAG")
+assert (
+    BASE_IMAGE
+), "Please specify image for your component in `IMAGE_TAG` environment variable"
+
+
+@lightweight_debuggable_component(base_image=BASE_IMAGE)
 def generate_data_comp(debug: bool = False) -> List:
     from pipe_fiction.data_generator import DataGenerator
 
@@ -15,7 +22,7 @@ def generate_data_comp(debug: bool = False) -> List:
 
 
 @lightweight_debuggable_component(
-    base_image="hsteude/pipe-fiction:latest",
+    base_image=BASE_IMAGE,
 )
 def process_data_comp(lines: List[str], debug: bool = False) -> List[str]:
     from pipe_fiction.data_processor import DataProcessor

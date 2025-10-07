@@ -89,18 +89,23 @@ Why is debugging a challenge?
    cd pipelines
    uv sync
    source .venv/bin/activate  # Activate when working on pipeline code
-   uv pip install -e ../pipe-fiction-codebase/ # Install custom package
+   uv pip install -e ../pipe-fiction-codebase/  # Install custom package
    ```
    
 3. **(RE-)Build the base Docker image if needed:**
    ```bash
    cd pipe-fiction-codebase
-   docker build -t <your-registry>/<your-image-name>:<your-tag> .
+   export IMAGE_TAG=<your-registry>/<your-image-name>:<your-tag>
+   docker build -t $IMAGE_TAG .
    ```
    More details on this in the `pipe-fiction-codebase` directory.
 
 4. **Run the pipeline**
     
+    ```bash
+    cd pipelines
+    ```
+
     Run locally using subprocesses (also works in KF-notebooks):
     ```bash
     python run_locally_in_subproc.py
