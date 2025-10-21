@@ -21,7 +21,7 @@ you'd like to change the predictor output.
 
 We used CrunchyLabs postgres-operator to deploy a postgres cluster in the namespace
 where you have deployed both inference services. If you have the operator deployed in
-your cluster, you can use the **postsgres-crd.yml** to deploy your database.
+your cluster, you can use the **postsgres-cluster.yml** to deploy your database.
 
 [!Warning]
 Make sure to create all required tables before you deploy the inference service. The
