@@ -31,7 +31,7 @@ europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-mnist:late
 
 ### Running the Experiment
 ```sh
-kubectl create -f katib-experiment.yaml -n <your-namespace>
+kubectl create -f katib-experiment.yaml
 ```
 
 ## Deleting the Experiment
