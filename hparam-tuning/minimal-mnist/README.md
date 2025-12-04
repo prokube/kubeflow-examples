@@ -18,17 +18,20 @@ directory.
 For Step 4, you can use the example provided in this directory.
 
 ## Starting the Experiment
-To start the Katib experiment, modify the `image` entry in the YAML file. 
-You can either modify the file directly and run:
 
-```sh
-kubectl create -f katib-experiment.yaml -n <your-namespace>
+### Image Configuration
+The YAML file uses the prokube internal registry by default:
+```
+europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-mnist:latest
 ```
 
-Or use the following command to modify it while starting the experiment:
+**If you don't have access to the prokube registry**, you need to:
+1. Build your own image (see [../../images/minimal-mnist/README.md](../../images/minimal-mnist/README.md) for instructions)
+2. Replace the `image` field in `katib-experiment.yaml` (line 73) with your own registry path
 
+### Running the Experiment
 ```sh
-sed 's/MNIST-IMAGE/<your-image-path>/' katib-experiment.yaml | kubectl create -f - -n <your-namespace>
+kubectl create -f katib-experiment.yaml
 ```
 
 ## Deleting the Experiment
