@@ -26,7 +26,7 @@ europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-mnist:late
 ```
 
 **If you don't have access to the prokube registry**, you need to:
-1. Build your own image (see `./images/minimal-mnist/` for instructions)
+1. Build your own image (see [../../images/minimal-mnist/README.md](../../images/minimal-mnist/README.md) for instructions)
 2. Replace the `image` field in `katib-experiment.yaml` (line 73) with your own registry path
 
 ### Running the Experiment
