@@ -9,19 +9,23 @@ and the corresponding resources to mirror the traffic.
 
 ## Structure
 
-To be able to use the shadow deployment, the `InferenceService` needs to store the
-request and response of each request. To do this, the **minimal-transformer** example
-contains a PredictionDBHandler that stores the request and response body with some
-metadata in a Postgres database.
+To be able to analyze the results of the shadow deployment (i.e. compare the
+results of your "original" model with the results of the "shadow" model), you
+need to store the request and response of each inference request for both, the
+original and the shadow model. For this purpose, this example uses custom kserve
+transformer (**minimal-transformer**), that stores the request and response in a
+Postgres database. For your own shadown deployment, you can uses this
+transformer as a template and modify it or write your own.
 
-The **minimal-predictor** is a small example custom predictor that multiplies the
-input values with some factor that is defined in an environment variable. This is
-especially useful for testing purposes since you don't have to build a new image if
-you'd like to change the predictor output. 
+The **minimal-predictor** used in this example is a small custom
+predictor that multiplies the input values with some factor that is defined in
+an environment variable. This is especially useful for testing purposes of the
+shadown deployment mechanism, since you don't have to build a new image if you'd
+like to change the predictor output. 
 
-We used CrunchyLabs postgres-operator to deploy a postgres cluster in the namespace
-where you have deployed both inference services. If you have the operator deployed in
-your cluster, you can use the **postsgres-cluster.yml** to deploy your database.
+We used CrunchyLabs postgres-operator to deploy a postgres cluster in the same namespace
+as the inference services. If you have the operator deployed in
+your cluster, you can use the **postsgres-cluster.yml** to deploy the same database.
 
 [!Warning]
 Make sure to create all required tables before you deploy the inference service. The
