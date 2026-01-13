@@ -3,7 +3,7 @@ name = "minimal-custom-kserve-transformer"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12, >=3.13"
+requires-python = ">=3.12, <3.13"
 dependencies = [
     "ipdb>=0.13.13",
     "kserve>=0.15.2",
