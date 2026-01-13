@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: streamlitdemo
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-demo
+  namespace: streamlitdemo
+  labels:
+    app: streamlit-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit-demo
+  template:
+    metadata:
+      labels:
+        app: streamlit-demo
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+        - name: streamlit
+          image: europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest
+          ports:
+            - containerPort: 8888
+              name: http
+          env:
+            - name: STREAMLIT_SERVER_HEADLESS
+              value: "true"
+            - name: NB_PREFIX
+              value: "/streamlit"
+          readinessProbe:
+            httpGet:
+              path: "/streamlit/"
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/streamlit/"
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-demo
+  namespace: streamlitdemo
+  labels:
+    app: streamlit-demo
+spec:
+  selector:
+    app: streamlit-demo
+  ports:
+    - port: 80
+      targetPort: 8888
+      name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: streamlit-demo
+  namespace: streamlitdemo
+spec:
+  hosts:
+    - '*'
+  gateways:
+    - kubeflow/kubeflow-gateway
+  http:
+    - match:
+        - uri:
+            exact: /streamlit
+      redirect:
+        uri: /streamlit/
+        redirectCode: 301
+    - match:
+        - uri:
+            prefix: /streamlit/
+      route:
+        - destination:
+            host: streamlit-demo.streamlitdemo.svc.cluster.local
+            port:
+              number: 80
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: streamlit-demo
+  namespace: streamlitdemo
+spec:
+  selector:
+    matchLabels:
+      app: streamlit-demo
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account
+    - from:
+        - source:
+            namespaces:
+              - istio-system
+              - kubeflow
+              - streamlitdemo
