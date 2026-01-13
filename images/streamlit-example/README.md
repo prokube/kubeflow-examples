@@ -92,6 +92,8 @@ For example, if your Kubeflow is at `https://kubeflow.example.com`, the Streamli
 
 **Customization options:**
 
+To deploy to a different namespace or with a different name, update all occurrences of `streamlitdemo` (namespace) and `streamlit-demo` (resource name) throughout the manifest.
+
 To change the URL path (e.g., from `/streamlit/` to `/myapp/`):
 1. Update the `NB_PREFIX` env var in the Deployment (line 37)
 2. Update the `readinessProbe` and `livenessProbe` paths (lines 40, 46)
