@@ -48,7 +48,6 @@ Deploy as a custom notebook image through the Kubeflow UI:
 3. Click **New Notebook**
 4. Fill in the notebook configuration:
    - **Name**: Choose a name (e.g., `streamlit-demo`)
-   - **Namespace**: Select your user namespace
    - **Custom Image**: Enable and enter the image URL:
      ```
      europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest
