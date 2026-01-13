@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 # Install dependencies
-RUN pip install --no-cache-dir streamlit==1.52.1 pandas numpy
+RUN pip install --no-cache-dir streamlit==1.52.1 pandas==2.2.3 numpy==1.26.4
 
 # Create app directory
 WORKDIR /app

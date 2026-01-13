@@ -4,7 +4,22 @@ A Streamlit demo app that runs both as a Kubeflow notebook and as a standalone K
 
 ## Converting Your Existing Streamlit App
 
-To convert your existing Streamlit app to work with Kubeflow, you need to address **URL path prefixing** and **port configuration**. The key challenge is that Kubeflow serves apps under path prefixes (like `/streamlit/` or `/notebook/<namespace>/<name>/`) rather than at the root URL. This template solves this with an **entrypoint script** (`entrypoint.sh`) that dynamically configures Streamlit's `baseUrlPath` based on the `NB_PREFIX` environment variable. For your app: (1) Copy the `entrypoint.sh` script and reference it in your Dockerfile's CMD, (2) Ensure your app runs on **port 8888** (Kubeflow notebook standard), (3) Set `STREAMLIT_SERVER_ENABLE_CORS=false` and `STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false` for Istio compatibility, (4) In your Kubernetes manifests, set the `NB_PREFIX` env var to match your VirtualService prefix (e.g., `/streamlit`), and (5) Create an Istio `AuthorizationPolicy` to allow traffic from the ingress gateway. The entrypoint script handles all the Streamlit configuration automatically, so your application code remains unchanged.
+To convert your existing Streamlit app to work with Kubeflow, you need to address **URL path prefixing** and **port configuration**. The key challenge is that Kubeflow serves apps under path prefixes (like `/streamlit/` or `/notebook/<namespace>/<name>/`) rather than at the root URL.
+
+This template solves this with an **entrypoint script** (`entrypoint.sh`) that dynamically configures Streamlit's `baseUrlPath` based on the `NB_PREFIX` environment variable.
+
+**Required steps for all deployment options:**
+
+1. Copy the `entrypoint.sh` script and reference it in your Dockerfile's CMD
+2. Ensure your app runs on **port 8888** (Kubeflow notebook standard)
+3. Set `STREAMLIT_SERVER_ENABLE_CORS=false` and `STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false` for Istio compatibility
+
+**Additional steps for standalone deployment (Option 2 only):**
+
+4. In the Kubernetes manifest (`k8s/streamlit-manifests.yaml`), set the `NB_PREFIX` env var to match your VirtualService prefix (e.g., `/streamlit`)
+5. Create an Istio `AuthorizationPolicy` to allow traffic from the ingress gateway
+
+The entrypoint script handles all the Streamlit configuration automatically, so your application code remains unchanged.
 
 ## Building the Docker Image
 
@@ -20,62 +35,70 @@ docker build -t <registry>/streamlit-demo:latest .
 docker push <registry>/streamlit-demo:latest
 ```
 
-Update the image reference in the manifests if using a different registry.
+If you push to a different registry, update the image reference in `k8s/streamlit-manifests.yaml` at line 29 (the `image:` field in the Deployment spec). The default image is `europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest`.
 
 ## Deployment Options
 
-### Option 1: Kubeflow Notebook (Port 8888)
-Deploy as a notebook interface on the standard Kubeflow notebook port:
+### Option 1: Kubeflow Notebook (Recommended)
 
-```bash
-kubectl apply -f k8s/notebook-deployment.yaml
-```
+Deploy as a custom notebook image through the Kubeflow UI:
 
-- **Port**: 8888 (Kubeflow notebook standard)
-- **Access**: `http://<kubeflow-host>/notebook/<namespace>/streamlit-notebook/`
-- **Features**: Includes persistent storage, StatefulSet deployment
-- **Note**: Update namespace in manifest to match your Kubeflow user namespace
+1. Open the Kubeflow Central Dashboard
+2. Navigate to **Notebooks** in the left sidebar
+3. Click **New Notebook**
+4. Fill in the notebook configuration:
+   - **Name**: Choose a name (e.g., `streamlit-demo`)
+   - **Namespace**: Select your user namespace
+   - **Custom Image**: Enable and enter the image URL:
+     ```
+     europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest
+     ```
+   - Leave other settings as default (or adjust CPU/memory as needed)
+5. Click **Launch**
+6. Once running, click **Connect** to open the Streamlit app
 
-### Option 2: Standalone Deployment (Port 8888)
-Deploy as a regular service:
+The image automatically detects the `NB_PREFIX` environment variable set by Kubeflow and configures Streamlit with the correct base URL path.
+
+**Access URL**: `https://<kubeflow-host>/notebook/<namespace>/<notebook-name>/`
+
+**Troubleshooting**:
+- Ensure the URL has a trailing slash
+- Check browser console for websocket connection errors
+- Verify the pod is running: `kubectl get pods -n <namespace>`
+
+### Option 2: Standalone Deployment
+
+Deploy as a standalone service accessible via a path prefix on your Kubeflow ingress:
 
 ```bash
 kubectl apply -f k8s/streamlit-manifests.yaml
 ```
 
-- **Port**: 8888 (same as notebook for consistency)
-- **Access**: `http://streamlit.kubeflow.example.com`
-- **Features**: Lightweight Deployment, no persistent storage
-- **Note**: Update hostname in VirtualService to match your DNS
+**Configuration required before deploying:**
 
-## Running Locally in a Kubeflow Notebook
-1. Open a Notebook server in your Kubeflow namespace
-2. Clone this repository
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run Streamlit on the notebook port:
-   ```bash
-   streamlit run streamlit_app/app.py --server.port 8888 --server.address 0.0.0.0
-   ```
-5. Access via the notebook's proxy URL
+The manifest (`k8s/streamlit-manifests.yaml`) contains default values that work out of the box with a path-based URL. The app will be available at:
 
-## Running as Custom Notebook Image
-When using the Docker image directly as a custom notebook image in Kubeflow:
+```
+https://<your-kubeflow-host>/streamlit/
+```
 
-1. The image automatically detects the `NB_PREFIX` environment variable
-2. Streamlit configures itself with the correct base URL path
-3. Access the app at: `http://<kubeflow-host>/notebook/<namespace>/<notebook-name>/`
+For example, if your Kubeflow is at `https://kubeflow.example.com`, the Streamlit app will be at `https://kubeflow.example.com/streamlit/`.
 
-**Troubleshooting**:
-- Try accessing with a trailing slash: `/notebook/<namespace>/<notebook-name>/`
-- Check browser console for errors (websocket connection issues)
-- Verify the `NB_PREFIX` env var is set correctly in the notebook pod
-- Check Istio/networking policies allow traffic to port 8888
+**What the manifest creates:**
+- **Namespace**: `streamlitdemo` with Istio injection enabled
+- **Deployment**: Single replica running the Streamlit app on port 8888
+- **Service**: Exposes the app internally on port 80
+- **VirtualService**: Routes `/streamlit/` traffic through the Kubeflow gateway
+- **AuthorizationPolicy**: Allows traffic from the Istio ingress gateway
+
+**Customization options:**
+
+To change the URL path (e.g., from `/streamlit/` to `/myapp/`):
+1. Update the `NB_PREFIX` env var in the Deployment (line 37)
+2. Update the `readinessProbe` and `livenessProbe` paths (lines 40, 46)
+3. Update the VirtualService URI matches (lines 79, 85)
 
 ## Notes
-- The Dockerfile installs requirements globally inside the image. For production, pin every dependency if the app grows.
+
 - Istio sidecar injection is enabled via `sidecar.istio.io/inject: "true"` on the Pod template. Adjust or disable it if deploying outside Kubeflow.
-- If you want to expose the app through another VirtualService or Gateway, copy the Istio section and adjust the hosts/gateway selectors accordingly.
-- The entrypoint script (`entrypoint.sh`) dynamically configures Streamlit based on whether `NB_PREFIX` is set
+- The entrypoint script (`entrypoint.sh`) dynamically configures Streamlit based on whether `NB_PREFIX` is set.
