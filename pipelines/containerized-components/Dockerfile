@@ -2,8 +2,11 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy and install the package
+# Upgrade pip for better timeout handling
+RUN pip install --upgrade pip
+
+# Copy and install the package with retries for slow connections
 COPY pyproject.toml .
 COPY src/ src/
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir --default-timeout=300 --retries=5 .

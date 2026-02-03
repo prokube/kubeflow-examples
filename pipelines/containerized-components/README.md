@@ -44,7 +44,9 @@ def train_model(...):
 We use a custom base image with our package pre-installed:
 
 ```python
-@dsl.component(base_image="your-registry/mobile-price-classification:v1")
+COMPONENTS_IMAGE = "<your-registry>/mobile-price-classification:v1"
+
+@dsl.component(base_image=COMPONENTS_IMAGE)
 def train_model(train_x: Input[Dataset], ...):
     from mobile_price_classification import train_model as _train_model
     _train_model(train_x.path, ...)
@@ -55,11 +57,11 @@ def train_model(train_x: Input[Dataset], ...):
 ### 1. Build and Push the Docker Image
 
 ```sh
-# Build the image
-docker build -t your-registry/mobile-price-classification:v1 .
+# Build the image (use --platform linux/amd64 when building on ARM Macs)
+docker build --platform linux/amd64 -t <your-registry>/mobile-price-classification:v1 .
 
 # Push to your registry
-docker push your-registry/mobile-price-classification:v1
+docker push <your-registry>/mobile-price-classification:v1
 ```
 
 ### 2. Update the Image Reference
@@ -67,7 +69,7 @@ docker push your-registry/mobile-price-classification:v1
 Edit `pipeline.py` and update `COMPONENTS_IMAGE` to point to your registry:
 
 ```python
-COMPONENTS_IMAGE = "your-registry/mobile-price-classification:v1"
+COMPONENTS_IMAGE = "<your-registry>/mobile-price-classification:v1"
 ```
 
 ### 3. Prepare the Dataset

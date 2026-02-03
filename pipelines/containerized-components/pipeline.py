@@ -4,8 +4,7 @@ from kfp import dsl
 from kfp.dsl import HTML, Input, Output, Dataset, Artifact, Model, ClassificationMetrics, Markdown
 
 
-# Change this to your container registry
-COMPONENTS_IMAGE = "your-registry/mobile-price-classification:v1"
+COMPONENTS_IMAGE = "europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/mobile-price-classification:v1"
 
 
 @dsl.component(base_image=COMPONENTS_IMAGE)
