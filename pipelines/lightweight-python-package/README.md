@@ -11,7 +11,7 @@ your Python package pre-installed. This approach combines the best of both world
 ## Project Structure
 
 ```
-containerized-components/
+lightweight-python-package/
 ├── src/
 │   └── mobile_price_classification/   # Python package with business logic
 │       ├── __init__.py
