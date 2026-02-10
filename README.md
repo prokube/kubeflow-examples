@@ -11,6 +11,7 @@ Kubeflow examples - Notebooks, Pipelines, Models, Model tuning and more
 ├── mlflow           # mlflow examples (simple jupyter notebook with mlflow and kfp + mlflow example)
 ├── notebooks        # dask example and an advanced jupyter notebook example
 ├── pipelines        # kubeflow pipelines examples
+├── rstudio          # R-Studio examples
 ├── serving          # KServe examples
 ```
 
