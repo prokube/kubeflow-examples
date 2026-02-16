@@ -1,0 +1,28 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: opt-125m-vllm
+  annotations:
+    huggingface.co/model-id: facebook/opt-125m
+spec:
+  predictor:
+    # Note: When using KEDA, replica limits are managed by the ScaledObject.
+    # These values serve as defaults if KEDA is not deployed.
+    minReplicas: 1
+    maxReplicas: 10
+    model:
+      modelFormat:
+        name: huggingface
+      args:
+        - --model_name=opt-125m
+        - --model_id=facebook/opt-125m
+        - --backend=vllm
+        - --dtype=float32
+        - --device=cpu
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
