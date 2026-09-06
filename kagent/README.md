@@ -11,3 +11,8 @@ These examples introduce [kagent](https://kagent.dev/) one step at a time:
 
 Complete the first three examples in order. The BYO example is standalone and
 requires permission to publish a container image.
+
+## Observability
+
+[`observability/mlflow-tracing`](./observability/mlflow-tracing/) shows how to
+send kagent traces from a workspace to an MLflow experiment.
