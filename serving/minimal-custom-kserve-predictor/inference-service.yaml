@@ -6,7 +6,8 @@ spec:
   predictor:
     containers:
       - name: kserve-container
-        image: europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-custom-kserve-predictor:latest # REPLACE ME if you don't have access to the prokube registry
+        # Replace this if you cannot access the prokube.ai registry.
+        image: europe-west3-docker.pkg.dev/prokube/development/minimal-custom-kserve-predictor:latest
         env:
         - name: MODEL_NAME
           value: "capitalizer"

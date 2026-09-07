@@ -1,10 +1,15 @@
 # Images
-This folder contains code and dockerfiles to create container images used elsewhere.
+This folder contains code and Dockerfiles to create container images used elsewhere.
 
-To build images either:
-1. Push this repository to GitLab CI.
-2. Build with GitHub CI. For that, run workflows defined in `.github/workflows`. Those are tailored to be used with GCP artifact registry. Ensure the following GitHub secrets are set:
-    ```tx
-    GCP_ARTIFACT_REGISTRY_PATH
-    GCP_SA_KEY
-    ```
+GitHub Actions publishes development builds to
+`europe-west3-docker.pkg.dev/prokube/development`. Release tags matching
+`vX.Y.Z` or `vX.Y.Z-rcN` publish every repository image to
+`europe-west3-docker.pkg.dev/prokube/releases` with only the unchanged Git tag.
+The `GCP_SA_KEY` GitHub secret must have access to both repositories.
+
+Local builds use the development registry:
+
+```sh
+make build-all
+make push-all TAG=<development-tag>
+```

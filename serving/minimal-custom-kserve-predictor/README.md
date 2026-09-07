@@ -48,7 +48,8 @@ pk-launch-podman-shell
 3. Build the image using `podman build` or `docker build` which is an alias to
    podman. E.g. like so:
    ```sh
-   docker build  --platform=linux/amd64 -t <your-registry/your-imagename:your-tag> .
+   TAG=my-development-tag
+   docker build --platform=linux/amd64 -t europe-west3-docker.pkg.dev/prokube/development/minimal-custom-kserve-predictor:$TAG .
    ```
 4. If you want to push the image to a private registry, you'll need to log in
    first: `docker login <your-registry> -u <your-username>`. You'll be prompted for your
@@ -79,4 +80,3 @@ curl -X POST \
 ```
 
 If you don't know your API key, reach out to your admin, who will know what to do.
-

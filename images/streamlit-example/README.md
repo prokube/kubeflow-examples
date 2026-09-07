@@ -25,17 +25,19 @@ The entrypoint script handles all the Streamlit configuration automatically, so 
 
 **For Mac (especially Apple Silicon)**, specify platform for Linux AMD64:
 ```bash
-docker build --platform linux/amd64 -t <registry>/streamlit-demo:latest .
-docker push <registry>/streamlit-demo:latest
+TAG=my-development-tag
+docker build --platform linux/amd64 -t europe-west3-docker.pkg.dev/prokube/development/streamlit-example:$TAG .
+docker push europe-west3-docker.pkg.dev/prokube/development/streamlit-example:$TAG
 ```
 
 **For Linux AMD64 hosts**:
 ```bash
-docker build -t <registry>/streamlit-demo:latest .
-docker push <registry>/streamlit-demo:latest
+TAG=my-development-tag
+docker build -t europe-west3-docker.pkg.dev/prokube/development/streamlit-example:$TAG .
+docker push europe-west3-docker.pkg.dev/prokube/development/streamlit-example:$TAG
 ```
 
-If you push to a different registry, update the image reference in `k8s/streamlit-manifests.yaml` at line 29 (the `image:` field in the Deployment spec). The default image is `europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest`.
+If you use a different development tag, update the image reference in `k8s/streamlit-manifests.yaml` (the `image:` field in the Deployment spec). The default image is `europe-west3-docker.pkg.dev/prokube/development/streamlit-example:latest`.
 
 ## Deployment Options
 
@@ -50,7 +52,7 @@ Deploy as a custom notebook image through the Kubeflow UI:
    - **Name**: Choose a name (e.g., `streamlit-demo`)
    - **Custom Image**: Enable and enter the image URL:
      ```
-     europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/streamlit-example:latest
+     europe-west3-docker.pkg.dev/prokube/development/streamlit-example:latest
      ```
    - Leave other settings as default (or adjust CPU/memory as needed)
 5. Click **Launch**

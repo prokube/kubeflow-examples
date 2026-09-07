@@ -1,0 +1,131 @@
+name: Build Images
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+    - main
+    tags:
+    - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY_HOST: europe-west3-docker.pkg.dev
+  REGISTRY: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && 'europe-west3-docker.pkg.dev/prokube/releases' || 'europe-west3-docker.pkg.dev/prokube/development' }}
+  IS_RELEASE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+    - name: Resolve image tag
+      id: tag
+      env:
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        if [[ "$IS_RELEASE" == "true" ]]; then
+          if [[ ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$ ]]; then
+            echo "Release tag must match vX.Y.Z or vX.Y.Z-rcN"
+            exit 1
+          fi
+          echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
+        else
+          echo "tag=commit-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        fi
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - image: minimal-mnist
+          context: images/minimal-mnist
+          dockerfile: images/minimal-mnist/Dockerfile
+        - image: streamlit-example
+          context: images/streamlit-example
+          dockerfile: images/streamlit-example/Dockerfile
+        - image: mobile-price-classification
+          context: pipelines/lightweight-python-package
+          dockerfile: pipelines/lightweight-python-package/Dockerfile
+        - image: minimal-custom-kserve-predictor
+          context: serving/minimal-custom-kserve-predictor
+          dockerfile: serving/minimal-custom-kserve-predictor/Dockerfile
+        - image: minimal-predictor
+          context: serving/minimal-example-shadow-deployment/minimal-predictor
+          dockerfile: serving/minimal-example-shadow-deployment/minimal-predictor/Dockerfile
+        - image: minimal-transformer
+          context: serving/minimal-example-shadow-deployment/minimal-transformer
+          dockerfile: serving/minimal-example-shadow-deployment/minimal-transformer/Dockerfile
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v3
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Log in to Google Artifact Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ${{ env.REGISTRY_HOST }}
+        username: _json_key
+        password: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Check immutable release artifact
+      id: artifact
+      if: env.IS_RELEASE == 'true'
+      env:
+        IMAGE: ${{ env.REGISTRY }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
+      run: |
+        ERROR_FILE=$(mktemp)
+        if gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)' >/dev/null 2>"$ERROR_FILE"; then
+          echo "$IMAGE already exists; preserving the immutable release artifact"
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        elif grep -q 'NOT_FOUND' "$ERROR_FILE"; then
+          echo "$IMAGE does not exist and will be published"
+        else
+          cat "$ERROR_FILE" >&2
+          exit 1
+        fi
+        rm -f "$ERROR_FILE"
+
+    - name: Build and push release image
+      if: env.IS_RELEASE == 'true' && steps.artifact.outputs.exists != 'true'
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        platforms: linux/amd64
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
+        cache-from: type=gha,scope=${{ matrix.image }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+    - name: Build and push development image
+      if: env.IS_RELEASE != 'true'
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && format('{0}/{1}:latest', env.REGISTRY, matrix.image) || '' }}
+        cache-from: type=gha,scope=${{ matrix.image }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image }}

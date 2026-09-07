@@ -47,6 +47,19 @@ Some examples require a minimum prokube platform version. If an example is not l
 All code contributions should go via pull requests. Make sure your code is clearly documented and that it adheres
 to established standards (e.g. PEP).
 
+### Container images
+
+Development images from pull requests, `main`, manual workflows, and local
+builds are published to `europe-west3-docker.pkg.dev/prokube/development`.
+Use `make build-all` or `make push-all` for local builds; override `TAG` when a
+specific development tag is useful.
+
+Release tags must match `vX.Y.Z` or `vX.Y.Z-rcN`. Every release tag builds all
+Dockerfiles in this repository and publishes each image exactly once to
+`europe-west3-docker.pkg.dev/prokube/releases` with the unchanged Git tag. A
+release rerun skips tags that already exist. Release tags are immutable; use a
+new release tag if image contents must change.
+
 ### Jupyter notebooks
 Since this repo contains Jupyter notebooks we use [nbstripout](https://github.com/kynan/nbstripout) as
 [pre-commit](https://pre-commit.com/) hook so all notebooks are stripped of cell outputs. Set it up locally for
