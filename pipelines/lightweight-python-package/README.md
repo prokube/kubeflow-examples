@@ -44,7 +44,7 @@ def train_model(...):
 We use a custom base image with our package pre-installed:
 
 ```python
-COMPONENTS_IMAGE = "europe-west3-docker.pkg.dev/prokube/development/mobile-price-classification:my-development-tag"
+COMPONENTS_IMAGE = "europe-west3-docker.pkg.dev/prokube/development/mobile-price-classification:latest"
 
 @dsl.component(base_image=COMPONENTS_IMAGE)
 def train_model(train_x: Input[Dataset], ...):
@@ -58,7 +58,7 @@ def train_model(train_x: Input[Dataset], ...):
 
 ```sh
 # Build the image (use --platform linux/amd64 when building on ARM Macs)
-TAG=my-development-tag
+TAG=latest
 docker build --platform linux/amd64 -t europe-west3-docker.pkg.dev/prokube/development/mobile-price-classification:$TAG .
 
 # Push to your registry
@@ -67,10 +67,11 @@ docker push europe-west3-docker.pkg.dev/prokube/development/mobile-price-classif
 
 ### 2. Update the Image Reference
 
-Edit `pipeline.py` and update `COMPONENTS_IMAGE` to point to your registry:
+The checked-in `pipeline.py` uses the development `latest` tag. Change
+`COMPONENTS_IMAGE` if you built another tag:
 
 ```python
-COMPONENTS_IMAGE = "europe-west3-docker.pkg.dev/prokube/development/mobile-price-classification:my-development-tag"
+COMPONENTS_IMAGE = "europe-west3-docker.pkg.dev/prokube/development/mobile-price-classification:latest"
 ```
 
 ### 3. Prepare the Dataset

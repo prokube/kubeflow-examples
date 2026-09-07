@@ -1,5 +1,9 @@
-override REGISTRY := europe-west3-docker.pkg.dev/prokube/development
+REGISTRY ?= europe-west3-docker.pkg.dev/prokube/development
 TAG ?= local-$(shell git rev-parse --short HEAD)
+
+ifneq ($(filter europe-west3-docker.pkg.dev/prokube/releases%,$(REGISTRY)),)
+$(error local builds must not target the prokube/releases registry)
+endif
 
 IMAGES := minimal-mnist streamlit-example mobile-price-classification \
 	minimal-custom-kserve-predictor minimal-predictor minimal-transformer

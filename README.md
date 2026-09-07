@@ -49,16 +49,23 @@ to established standards (e.g. PEP).
 
 ### Container images
 
-Development images from pull requests, `main`, manual workflows, and local
-builds are published to `europe-west3-docker.pkg.dev/prokube/development`.
-Use `make build-all` or `make push-all` for local builds; override `TAG` when a
-specific development tag is useful.
+Pull requests build every image without registry credentials and never push.
+Trusted `main` and manual workflow builds publish to
+`europe-west3-docker.pkg.dev/prokube/development`. Use `make build-all` or
+`make push-all` for local builds; override `TAG` when a specific development
+tag is useful. `REGISTRY` may be set to a personal development registry, but
+local builds reject the official release registry.
 
 Release tags must match `vX.Y.Z` or `vX.Y.Z-rcN`. Every release tag builds all
 Dockerfiles in this repository and publishes each image exactly once to
 `europe-west3-docker.pkg.dev/prokube/releases` with the unchanged Git tag. A
 release rerun skips tags that already exist. Release tags are immutable; use a
-new release tag if image contents must change.
+new release tag if image contents must change. Numeric version and release
+candidate fields use `0` or a non-zero leading digit; leading zeroes are
+rejected.
+
+GAR repository immutability and GitHub release-tag rulesets are external
+deployment prerequisites. They are not configured by this repository.
 
 ### Jupyter notebooks
 Since this repo contains Jupyter notebooks we use [nbstripout](https://github.com/kynan/nbstripout) as
