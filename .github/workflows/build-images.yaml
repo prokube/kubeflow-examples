@@ -132,8 +132,6 @@ jobs:
         file: ${{ matrix.dockerfile }}
         platforms: linux/amd64
         push: true
-        tags: |
-          ${{ needs.prepare.outputs.registry }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
-          ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && format('{0}/{1}:latest', needs.prepare.outputs.registry, matrix.image) || '' }}
+        tags: ${{ github.event_name == 'push' && format('{0}/{1}:{2},{0}/{1}:latest', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) || format('{0}/{1}:{2}', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) }}
         cache-from: type=gha,scope=${{ matrix.image }}
         cache-to: type=gha,mode=max,scope=${{ matrix.image }}

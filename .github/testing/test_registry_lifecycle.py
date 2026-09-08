@@ -185,6 +185,15 @@ class WorkflowContractTest(unittest.TestCase):
         self.assertNotIn("latest", release)
         self.assertNotIn("commit-", release)
 
+    def test_development_tags_never_include_an_empty_entry(self) -> None:
+        development = WORKFLOW.split("    - name: Build and push development image", 1)[
+            1
+        ]
+        self.assertNotIn("tags: |", development)
+        self.assertIn("tags: ${{ github.event_name == 'push'", development)
+        self.assertIn("{0}/{1}:{2},{0}/{1}:latest", development)
+        self.assertIn("|| format('{0}/{1}:{2}'", development)
+
     def test_release_checks_repository_before_manifest(self) -> None:
         repository = WORKFLOW.index("gcloud artifacts repositories describe")
         manifest = WORKFLOW.index("registry_manifest.py")
