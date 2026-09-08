@@ -23,6 +23,28 @@ def _namespace() -> str:
         return fh.read().strip()
 
 
+def _ensure_pk_helpers() -> None:
+    """Editable-install pk_helpers if it isn't already importable.
+
+    Lets this script run standalone — not just via CI, which does the same
+    thing in its own preflight step.
+    """
+    try:
+        import pk_helpers  # noqa: F401
+    except ImportError:
+        repo_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], text=True
+        ).strip()
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", "-e", repo_root],
+            check=True,
+        )
+        # pip's editable-install .pth file is only picked up by `site` at
+        # interpreter startup, so patch sys.path directly to make the
+        # package importable in this already-running process too.
+        sys.path.insert(0, os.path.join(repo_root, "src"))
+
+
 def _kubectl_apply(manifest: str, namespace: str) -> None:
     result = subprocess.run(
         ["kubectl", "apply", "-f", "-", "-n", namespace],
@@ -67,6 +89,7 @@ def _wait_isvc_ready(name: str, namespace: str, timeout: int) -> None:
 
 def _smoke_test(namespace: str, timeout: int = 300) -> None:
     """POST to the internal cluster URL; retries until the model responds."""
+    _ensure_pk_helpers()
     from pk_helpers import internal_predict_url
 
     url = internal_predict_url(_ISVC_NAME, namespace, _MODEL_NAME)

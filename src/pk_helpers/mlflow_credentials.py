@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import json
+import os
 import subprocess
 import sys
 
 _SECRET_NAME = "mlflow-credentials"
+_CRED_KEYS = (
+    "MLFLOW_TRACKING_URI",
+    "MLFLOW_TRACKING_USERNAME",
+    "MLFLOW_TRACKING_PASSWORD",
+)
 
 
 def _namespace() -> str:
@@ -75,6 +83,75 @@ def setup_mlflow_credentials(
         raise RuntimeError(f"kubectl apply failed:\n{apply.stderr}")
 
     print(f"Secret '{_SECRET_NAME}' created/updated in namespace '{ns}'.")
+
+
+def _read_secret() -> dict[str, str] | None:
+    """Return the decoded secret data, or None if the secret doesn't exist."""
+    result = subprocess.run(
+        ["kubectl", "get", "secret", _SECRET_NAME, "-n", _namespace(), "-o", "json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    data = json.loads(result.stdout)["data"]
+    return {k: base64.b64decode(data[k]).decode() for k in _CRED_KEYS}
+
+
+def load_mlflow_credentials() -> dict[str, str]:
+    """Resolve MLflow tracking credentials and set them on ``os.environ``.
+
+    Resolution order:
+
+    1. ``MLFLOW_TRACKING_URI`` / ``_USERNAME`` / ``_PASSWORD`` already set in
+       the environment (e.g. filled in manually in a notebook cell) — use
+       this to avoid the shared secret entirely.
+    2. The ``mlflow-credentials`` Kubernetes secret — create it once with
+       ``pk-setup-mlflow-credentials``.
+
+    Also sets ``MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true``. Raises
+    ``RuntimeError`` with actionable guidance if neither source is available.
+    """
+    if all(os.environ.get(k) for k in _CRED_KEYS):
+        creds = {k: os.environ[k] for k in _CRED_KEYS}
+    else:
+        creds = _read_secret()
+        if creds is None:
+            raise RuntimeError(
+                "MLflow credentials not found. Either:\n"
+                "  1. Run `pk-setup-mlflow-credentials` once from a JupyterLab "
+                "terminal (requires `%pip install -q -e ~/kubeflow-examples` "
+                "to have been run first so the console script exists), or\n"
+                "  2. Set MLFLOW_TRACKING_URI / MLFLOW_TRACKING_USERNAME / "
+                "MLFLOW_TRACKING_PASSWORD directly in a notebook cell before "
+                "calling load_mlflow_credentials()."
+            )
+        os.environ.update(creds)
+    os.environ["MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD"] = "true"
+    return creds
+
+
+def require_mlflow_secret() -> None:
+    """Fail fast if the ``mlflow-credentials`` K8s secret does not exist.
+
+    Use this before building/submitting a KFP pipeline that injects MLflow
+    credentials into task pods via ``use_secret_as_env``. Unlike
+    ``load_mlflow_credentials()``, there is no environment-variable
+    fallback here: pipeline task pods run in their own containers and can
+    only read credentials from the K8s secret (which is also the more
+    secure option, since the raw token never appears in the pipeline
+    definition), so the secret must exist regardless of what's set in the
+    notebook's own environment.
+    """
+    if _read_secret() is None:
+        raise RuntimeError(
+            "mlflow-credentials secret not found. This pipeline injects "
+            "MLflow credentials into its task pods from that secret, so it "
+            "must exist in the cluster (setting MLFLOW_TRACKING_* env vars "
+            "in the notebook itself is not enough).\n"
+            "Run `pk-setup-mlflow-credentials` from a JupyterLab terminal "
+            "to create it."
+        )
 
 
 def main() -> None:

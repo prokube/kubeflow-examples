@@ -35,6 +35,28 @@ def _namespace() -> str:
         return fh.read().strip()
 
 
+def _ensure_pk_helpers() -> None:
+    """Editable-install pk_helpers if it isn't already importable.
+
+    Lets this script run standalone — not just via CI, which does the same
+    thing in its own preflight step.
+    """
+    try:
+        import pk_helpers  # noqa: F401
+    except ImportError:
+        repo_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], text=True
+        ).strip()
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", "-e", repo_root],
+            check=True,
+        )
+        # pip's editable-install .pth file is only picked up by `site` at
+        # interpreter startup, so patch sys.path directly to make the
+        # package importable in this already-running process too.
+        sys.path.insert(0, os.path.join(repo_root, "src"))
+
+
 def _mlflow_username(namespace: str) -> str:
     result = subprocess.run(
         [
@@ -117,6 +139,7 @@ def _isvc_url(name: str, namespace: str) -> str:
 
 
 def _get_api_key() -> str:
+    _ensure_pk_helpers()
     from pk_helpers import get_or_create_api_key
 
     return get_or_create_api_key()

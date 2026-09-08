@@ -151,6 +151,37 @@ pk-setup-mlflow-credentials
 Do not call this from CI.  CI validates the secret exists in the preflight
 check and skips MLflow-dependent examples if it does not.
 
+### load_mlflow_credentials
+
+Call from any notebook that talks to MLflow directly in its own process
+(not via a KFP pipeline). Resolves credentials in order: (1)
+`MLFLOW_TRACKING_URI`/`_USERNAME`/`_PASSWORD` already set in the
+environment — the escape hatch for notebooks run without the shared secret
+— otherwise (2) the `mlflow-credentials` K8s secret. Sets the resolved
+values (plus `MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true`) on `os.environ`
+and raises `RuntimeError` with actionable guidance if neither is
+available.
+
+```python
+from pk_helpers import load_mlflow_credentials
+
+load_mlflow_credentials()
+```
+
+### require_mlflow_secret
+
+Call before building/submitting a KFP pipeline whose tasks read MLflow
+credentials via `use_secret_as_env(secret_name="mlflow-credentials", ...)`.
+Fails fast with a clear error if the secret is missing, instead of letting
+the pipeline fail later inside a task pod. Unlike `load_mlflow_credentials`,
+there's no env-var fallback — task pods can only read the K8s secret.
+
+```python
+from pk_helpers import require_mlflow_secret
+
+require_mlflow_secret()
+```
+
 ### get_or_create_api_key
 
 Returns a model-serving API key: the `INFERENCE_SERVICE_API_KEY` env var if
