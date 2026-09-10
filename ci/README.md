@@ -165,11 +165,12 @@ python -m pip install -e .
 ### setup_mlflow_credentials
 
 Interactive. Stores MLflow credentials in the `mlflow-credentials` Kubernetes
-secret. Run it from a notebook cell; it prompts for the MLflow URI, email
-address, and Personal Access Token:
+Secret. First, create a Personal Access Token from `/mlflow/oidc/ui/auth` on
+your prokube domain. Then run the setup cell; the script prompts for the MLflow
+URI, email address, and token, and creates or updates the Secret:
 
 ```python
-# Prompts for MLflow credentials and creates or updates the Kubernetes secret.
+# Prompts for your MLflow URI, email, and PAT, then creates or updates the Secret.
 %run ~/examples/src/pk_helpers/mlflow_credentials.py
 ```
 
