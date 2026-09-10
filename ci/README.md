@@ -138,40 +138,29 @@ If you add an `apply.py`, always add the matching `cleanup.py` as well.
 
 ---
 
-## pk_helpers package
+## pk_helpers
 
 `pk_helpers` (source in `src/pk_helpers/`) contains prokube platform utilities
-for notebooks and apply scripts. In an activated virtual environment, install
-it in editable mode from the repository root:
+for notebooks and apply scripts. Notebooks load only the required script, so
+users do not need to install the package:
+
+```python
+%run -n ~/examples/src/pk_helpers/mlflow_credentials.py
+```
+
+The `-n` option loads the functions without running the script's command-line
+entry point. Use plain `%run` when the entry point itself is the intended
+interactive action, as shown below.
+
+CI installs the package during preflight. Standalone `apply.py` scripts install
+it automatically if it is not already available, so those scripts can use
+normal package imports.
+
+To install the package manually in an activated virtual environment, run:
 
 ```bash
 python -m pip install -e .
 ```
-
-In a Kubeflow notebook, use this setup cell near the top instead:
-
-```python
-import sys
-
-_pip_user_flag = "" if sys.prefix != sys.base_prefix else "--user"
-%pip install -q {_pip_user_flag} -e $(git rev-parse --show-toplevel)
-```
-
-Resolving the repository root through git allows the cell to work regardless
-of the clone directory name.
-
-In a Kubeflow notebook pod, `$HOME` (for example, `/home/jovyan`) is on the
-persistent workspace volume, while the interpreter's site-packages is part
-of the container. Installing with `--user` places the package under
-`$HOME/.local`, so it remains available when the pod is recreated. Because
-`pip` rejects `--user` inside a virtual environment, the setup checks
-`sys.prefix` before adding the option. CI and the standalone `apply.py`
-scripts use the same check.
-
-CI installs it automatically in the preflight step (`_ensure_pk_helpers`),
-so `apply.py` scripts can `from pk_helpers import ...` without any path
-wiring.  Every helper works identically whether called from a notebook cell
-or from an `apply.py`.
 
 ### setup_mlflow_credentials
 
@@ -200,8 +189,7 @@ the resolved values and `MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true` to
 available.
 
 ```python
-from pk_helpers import load_mlflow_credentials
-
+%run -n ~/examples/src/pk_helpers/mlflow_credentials.py
 load_mlflow_credentials()
 ```
 
@@ -215,8 +203,7 @@ run in separate pods and must read credentials from the Kubernetes secret;
 variables set only in the notebook are not available to them.
 
 ```python
-from pk_helpers import require_mlflow_secret
-
+%run -n ~/examples/src/pk_helpers/mlflow_credentials.py
 require_mlflow_secret()
 ```
 
@@ -228,8 +215,7 @@ an admin has injected one into the pod, otherwise an interactive prompt
 from any notebook cell or script that needs an inference API key:
 
 ```python
-from pk_helpers import get_or_create_api_key
-
+%run -n ~/examples/src/pk_helpers/api_key.py
 API_KEY = get_or_create_api_key()
 ```
 
@@ -268,8 +254,7 @@ gateway URL) should use this instead of hardcoding the `<isvc>-predictor`
 pattern:
 
 ```python
-from pk_helpers import internal_predict_url
-
+%run -n ~/examples/src/pk_helpers/kserve_url.py
 url = internal_predict_url(isvc_name, namespace, model_name)
 ```
 

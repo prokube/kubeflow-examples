@@ -18,10 +18,10 @@ For full platform documentation, see [docs.prokube.ai](https://docs.prokube.ai/)
 └── src/pk_helpers   # installable prokube helpers (credential setup, API key, KServe URLs)
 ```
 
-The shared `pk_helpers` package provides platform-specific utilities used by
-the notebooks and serving examples. Each notebook that needs it includes a
-setup cell; see [`ci/README.md`](ci/README.md#pk_helpers-package) for manual
-installation and contributor guidance.
+The scripts in `src/pk_helpers` provide platform-specific utilities used by
+the notebooks and serving examples. Notebooks load the scripts they need
+directly; CI and standalone apply scripts install them as a package. See
+[`ci/README.md`](ci/README.md#pk_helpers) for contributor guidance.
 
 Many serving examples include an `apply.py` (deploy + smoke-test) and a `cleanup.py`
 (teardown of Kubernetes resources) alongside the notebook. These are used by the CI
