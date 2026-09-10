@@ -120,8 +120,8 @@ def load_mlflow_credentials() -> dict[str, str]:
             raise RuntimeError(
                 "MLflow credentials not found. Either:\n"
                 "  1. Run `pk-setup-mlflow-credentials` once from a JupyterLab "
-                "terminal (requires `%pip install -q -e ~/kubeflow-examples` "
-                "to have been run first so the console script exists), or\n"
+                "terminal (requires `pip install -e .` to have been run first "
+                "so the console script exists), or\n"
                 "  2. Set MLFLOW_TRACKING_URI / MLFLOW_TRACKING_USERNAME / "
                 "MLFLOW_TRACKING_PASSWORD directly in a notebook cell before "
                 "calling load_mlflow_credentials()."

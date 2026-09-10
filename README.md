@@ -19,8 +19,10 @@ For full platform documentation, see [docs.prokube.ai](https://docs.prokube.ai/)
 ```
 
 The shared `pk_helpers` package is installable from the repo root
-(`pip install -e .`); notebooks install it via a `%pip install -q -e ~/kubeflow-examples`
-setup cell and import helpers with `from pk_helpers import ...`.
+(`pip install -e .`); notebooks install it via a
+`%pip install -q -e $(git rev-parse --show-toplevel)` setup cell (works
+regardless of the clone directory name) and import helpers with
+`from pk_helpers import ...`.
 
 Many serving examples include an `apply.py` (deploy + smoke-test) and a `cleanup.py`
 (teardown of Kubernetes resources) alongside the notebook. These are used by the CI

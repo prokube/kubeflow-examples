@@ -129,8 +129,12 @@ pip install -e .
 In notebooks, do this from a setup cell near the top:
 
 ```python
-%pip install -q -e ~/kubeflow-examples
+%pip install -q -e $(git rev-parse --show-toplevel)
 ```
+
+Resolving the repo root via git (rather than a hardcoded `~/<dir-name>`
+path) means this cell keeps working regardless of what directory the repo
+is cloned into.
 
 CI installs it automatically in the preflight step (`_ensure_pk_helpers`),
 so `apply.py` scripts can `from pk_helpers import ...` without any path
