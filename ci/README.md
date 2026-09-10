@@ -1,17 +1,38 @@
-# CI — contributor guide
+# CI contributor guide
 
-> This document is written primarily for AI agents making changes to this
-> repository.  It describes the conventions that must be followed for a new
-> example to be picked up by `ci/run_all.py` correctly.
+This guide explains how contributors and automation agents can run the example
+suite and register new examples in `ci/run_all.py`.
+
+---
+
+## Running CI
+
+Run the suite from a Kubeflow notebook pod with this repository checked out:
+
+```bash
+python ci/run_all.py
+```
+
+To preview the execution plan without running any examples:
+
+```bash
+python ci/run_all.py --dry-run
+```
+
+MLflow examples require the `mlflow-credentials` Kubernetes secret. Serving
+examples that use external authentication require
+`INFERENCE_SERVICE_API_KEY`. Examples with unavailable prerequisites are
+reported as skipped. Run `python ci/run_all.py --help` for timeout and opt-in
+options.
 
 ---
 
 ## Adding a new example
 
-Register it in the `_EXAMPLES` list in `run_all.py`.  Everything else —
-phase scheduling, opt-in gating, cleanup, dry-run output, MLflow-credential
-and API-key skipping, env-mutating ordering — is derived from that entry
-automatically.
+Register it in the `_EXAMPLES` list in `run_all.py`. Phase scheduling,
+cleanup, dry-run output, credential checks, and environment-mutating ordering
+are derived from this entry. Opt-in examples require the additional changes
+described below.
 
 ```python
 Example(
@@ -22,7 +43,7 @@ Example(
         # chain multiple steps if needed (executed sequentially)
     ],
     phase=1,                             # see Phase rules below
-    cleanup="serving/my-new-example/cleanup.py",  # omit if no K8s resources
+    cleanup="serving/my-new-example/cleanup.py",  # omit if no Kubernetes resources
     opt_in="include_foo",                # omit if always enabled
     mlflow_dependent=False,              # True = skip when MLflow creds absent
     api_key_dependent=False,             # True = skip when INFERENCE_SERVICE_API_KEY is unset
@@ -33,22 +54,22 @@ Example(
 
 ### env_mutating flag
 
-Every notebook in a phase is executed via papermill against the **same**
-`python3` kernel/site-packages — there is no per-notebook virtualenv.  If a
-notebook runs `pip install --upgrade <pkg>` while another notebook in the
-same phase is concurrently importing that package, the concurrent
-reinstall can corrupt the import (e.g. `ModuleNotFoundError:
+Papermill executes each notebook in a separate `python3` kernel process, but
+all kernels use the same Python environment and site-packages. CI does not
+create an isolated environment for each notebook. If one notebook runs
+`pip install --upgrade <pkg>` while another notebook is importing that
+package, the concurrent reinstall can corrupt the import (e.g. `ModuleNotFoundError:
 No module named 'pandas._libs.internals'` from a partially-replaced
 compiled extension).
 
-Set `env_mutating=True` on any example whose steps run `pip install` /
-`%pip install` (uncommented, not `-q`-only-metadata, actually mutating
-installed packages) against packages that other examples in the same
-phase might import.  `run_all.py` runs all `env_mutating` examples in a
+Set `env_mutating=True` when an example runs an active `pip install` or
+`%pip install` command that installs or upgrades packages imported by other
+examples in the same phase. Ignore commented-out installation examples.
+`run_all.py` runs all `env_mutating` examples in a
 phase to completion **before** starting the rest of that phase, instead of
-throwing everything into the same parallel batch.  Prefer avoiding
+placing everything in the same parallel batch. Prefer avoiding
 `pip install --upgrade` in new examples entirely (pin/bake deps into the
-notebook image) — reach for `env_mutating=True` only when that isn't
+notebook image); use `env_mutating=True` only when that is not
 possible.
 
 ### Phase rules
@@ -61,16 +82,17 @@ possible.
 
 ### Opt-in flag
 
-Add `opt_in="include_foo"` and a corresponding `--include-foo` argument in
-the `__main__` block of `run_all.py`.  Use opt-in when the example requires
-cluster add-ons (KEDA, postgres-operator, GPU nodes) that are not guaranteed
-to be present.
+Use opt-in when an example requires cluster add-ons (KEDA,
+`postgres-operator`, GPU nodes) that may not be present. Add
+`opt_in="include_foo"` to the `Example`, add an `include_foo` parameter to
+`run_all()`, include it in the `opts` mapping, define the `--include-foo`
+argument, and pass the parsed value to `run_all()`.
 
 ---
 
 ## apply.py and cleanup.py
 
-### cleanup.py — always add when K8s resources are created
+### cleanup.py — always add when Kubernetes resources are created
 
 Any example that creates Kubernetes resources (InferenceService, Deployment,
 Service, CRD instance, …) must have a `cleanup.py` in its directory.
@@ -118,15 +140,15 @@ If you add an `apply.py`, always add the matching `cleanup.py` as well.
 
 ## pk_helpers package
 
-`pk_helpers` (source in `src/pk_helpers/`) bundles the prokube-platform
-utilities importable from notebooks and apply scripts.  It is a regular,
-installable Python package — install it once, editable, from the repo root:
+`pk_helpers` (source in `src/pk_helpers/`) contains prokube platform utilities
+for notebooks and apply scripts. In an activated virtual environment, install
+it in editable mode from the repository root:
 
 ```bash
-pip install -e .
+python -m pip install -e .
 ```
 
-In notebooks, do this from a setup cell near the top:
+In a Kubeflow notebook, use this setup cell near the top instead:
 
 ```python
 import sys
@@ -135,20 +157,16 @@ _pip_user_flag = "" if sys.prefix != sys.base_prefix else "--user"
 %pip install -q {_pip_user_flag} -e $(git rev-parse --show-toplevel)
 ```
 
-Resolving the repo root via git (rather than a hardcoded `~/<dir-name>`
-path) means this cell keeps working regardless of what directory the repo
-is cloned into.
+Resolving the repository root through git allows the cell to work regardless
+of the clone directory name.
 
-The `--user` guard matters in a Kubeflow notebook pod: only `$HOME` (e.g.
-`/home/jovyan`) is on the persistent workspace volume — the interpreter's
-own site-packages (e.g. `/opt/conda/lib/python3.x/site-packages`) lives in
-the container image's ephemeral layer and is reset on every pod/kernel
-restart. A plain `pip install -e .` there silently disappears after a
-restart; `--user` installs into `$HOME/.local/lib/python3.x/site-packages`
-instead, which survives. `pip` itself refuses `--user` inside a
-virtualenv, hence the `sys.prefix != sys.base_prefix` check — the same
-guard is used in `ci/run_all.py`'s `_ensure_pk_helpers()` and in each
-`apply.py`'s copy of the same function.
+In a Kubeflow notebook pod, `$HOME` (for example, `/home/jovyan`) is on the
+persistent workspace volume, while the interpreter's site-packages is part
+of the container. Installing with `--user` places the package under
+`$HOME/.local`, so it remains available when the pod is recreated. Because
+`pip` rejects `--user` inside a virtual environment, the setup checks
+`sys.prefix` before adding the option. CI and the standalone `apply.py`
+scripts use the same check.
 
 CI installs it automatically in the preflight step (`_ensure_pk_helpers`),
 so `apply.py` scripts can `from pk_helpers import ...` without any path
@@ -157,27 +175,28 @@ or from an `apply.py`.
 
 ### setup_mlflow_credentials
 
-One-time, interactive.  Stores MLflow credentials in the
-`mlflow-credentials` K8s secret.  **Requires human input** (the MLflow
-Personal Access Token cannot be obtained programmatically).  Run it once from
-a JupyterLab terminal via the installed console script:
+Interactive. Stores MLflow credentials in the `mlflow-credentials` Kubernetes
+secret. Run it from a notebook cell; it prompts for the MLflow URI, email
+address, and Personal Access Token:
 
-```bash
-pk-setup-mlflow-credentials
+```python
+# Prompts for MLflow credentials and creates or updates the Kubernetes secret.
+%run ~/examples/src/pk_helpers/mlflow_credentials.py
 ```
 
-Do not call this from CI.  CI validates the secret exists in the preflight
-check and skips MLflow-dependent examples if it does not.
+If the secret already exists, the script asks before replacing it and leaves
+it unchanged by default. Tag this interactive cell with `ci-skip`. CI removes
+the cell before execution, validates the preconfigured secret during
+preflight, and skips MLflow-dependent examples if the secret is unavailable.
 
 ### load_mlflow_credentials
 
-Call from any notebook that talks to MLflow directly in its own process
-(not via a KFP pipeline). Resolves credentials in order: (1)
-`MLFLOW_TRACKING_URI`/`_USERNAME`/`_PASSWORD` already set in the
-environment — the escape hatch for notebooks run without the shared secret
-— otherwise (2) the `mlflow-credentials` K8s secret. Sets the resolved
-values (plus `MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true`) on `os.environ`
-and raises `RuntimeError` with actionable guidance if neither is
+Call this from a notebook that communicates with MLflow directly rather than
+through a KFP pipeline. It first uses `MLFLOW_TRACKING_URI`,
+`MLFLOW_TRACKING_USERNAME`, and `MLFLOW_TRACKING_PASSWORD` if all three are
+set. Otherwise, it reads the `mlflow-credentials` Kubernetes secret. It adds
+the resolved values and `MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true` to
+`os.environ`, and raises a clear `RuntimeError` if no credentials are
 available.
 
 ```python
@@ -188,11 +207,12 @@ load_mlflow_credentials()
 
 ### require_mlflow_secret
 
-Call before building/submitting a KFP pipeline whose tasks read MLflow
+Call this before building or submitting a KFP pipeline whose tasks read MLflow
 credentials via `use_secret_as_env(secret_name="mlflow-credentials", ...)`.
-Fails fast with a clear error if the secret is missing, instead of letting
-the pipeline fail later inside a task pod. Unlike `load_mlflow_credentials`,
-there's no env-var fallback — task pods can only read the K8s secret.
+It checks that the secret exists before the pipeline is submitted, so a
+missing secret produces a clear error in the notebook. Pipeline components
+run in separate pods and must read credentials from the Kubernetes secret;
+variables set only in the notebook are not available to them.
 
 ```python
 from pk_helpers import require_mlflow_secret

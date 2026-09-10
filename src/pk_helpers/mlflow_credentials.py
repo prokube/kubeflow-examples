@@ -30,6 +30,27 @@ def _prompt(label: str, secret: bool = False) -> str:
     return input(f"{label}: ").strip()
 
 
+def _secret_exists(namespace: str) -> bool:
+    result = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "secret",
+            _SECRET_NAME,
+            "-n",
+            namespace,
+            "-o",
+            "name",
+            "--ignore-not-found",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Could not check for an existing secret:\n{result.stderr}")
+    return bool(result.stdout.strip())
+
+
 def setup_mlflow_credentials(
     uri: str | None = None,
     username: str | None = None,
@@ -39,6 +60,16 @@ def setup_mlflow_credentials(
 
     Any parameter left as ``None`` will be requested interactively.
     """
+    ns = _namespace()
+    if _secret_exists(ns):
+        overwrite = _prompt(
+            f"Secret '{_SECRET_NAME}' already exists in namespace '{ns}'. "
+            "Replace it? [y/N]"
+        ).lower()
+        if overwrite not in {"y", "yes"}:
+            print(f"Secret '{_SECRET_NAME}' already exists; leaving it unchanged.")
+            return
+
     if uri is None:
         print("MLflow tracking URI — typically https://<your-cluster-domain>/mlflow/")
         uri = _prompt("MLFLOW_TRACKING_URI")
@@ -48,8 +79,6 @@ def setup_mlflow_credentials(
         password = _prompt(
             "MLFLOW_TRACKING_PASSWORD (Personal Access Token)", secret=True
         )
-
-    ns = _namespace()
 
     result = subprocess.run(
         [
@@ -106,8 +135,8 @@ def load_mlflow_credentials() -> dict[str, str]:
     1. ``MLFLOW_TRACKING_URI`` / ``_USERNAME`` / ``_PASSWORD`` already set in
        the environment (e.g. filled in manually in a notebook cell) — use
        this to avoid the shared secret entirely.
-    2. The ``mlflow-credentials`` Kubernetes secret — create it once with
-       ``pk-setup-mlflow-credentials``.
+    2. The ``mlflow-credentials`` Kubernetes secret, created by running this
+       file interactively from a notebook.
 
     Also sets ``MLFLOW_ENABLE_PROXY_MULTIPART_UPLOAD=true``. Raises
     ``RuntimeError`` with actionable guidance if neither source is available.
@@ -119,9 +148,8 @@ def load_mlflow_credentials() -> dict[str, str]:
         if creds is None:
             raise RuntimeError(
                 "MLflow credentials not found. Either:\n"
-                "  1. Run `pk-setup-mlflow-credentials` once from a JupyterLab "
-                "terminal (requires `pip install -e .` to have been run first "
-                "so the console script exists), or\n"
+                "  1. Run `%run ~/examples/src/pk_helpers/mlflow_credentials.py` "
+                "in a notebook cell, or\n"
                 "  2. Set MLFLOW_TRACKING_URI / MLFLOW_TRACKING_USERNAME / "
                 "MLFLOW_TRACKING_PASSWORD directly in a notebook cell before "
                 "calling load_mlflow_credentials()."
@@ -149,8 +177,8 @@ def require_mlflow_secret() -> None:
             "MLflow credentials into its task pods from that secret, so it "
             "must exist in the cluster (setting MLFLOW_TRACKING_* env vars "
             "in the notebook itself is not enough).\n"
-            "Run `pk-setup-mlflow-credentials` from a JupyterLab terminal "
-            "to create it."
+            "Run `%run ~/examples/src/pk_helpers/mlflow_credentials.py` in a "
+            "notebook cell to create it."
         )
 
 

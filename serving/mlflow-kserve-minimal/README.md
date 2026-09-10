@@ -9,8 +9,11 @@ InferenceService using the v2 inference protocol. It uses the built-in
 - A model trained and registered in MLflow. See the
   [mobile price classification MLflow example](../../mlflow/mobile-price-classification/)
   for how to train and register the SVM model used here.
-- `kubectl` access to your prokube namespace. (already installed in a pk-notebook)
-- Python with the `requests` package installed (for testing, already installed in a pk-notebook)
+- `kubectl` access to your prokube namespace (`kubectl` is preinstalled in
+  prokube notebooks).
+- Python with the `requests` package (`requests` is preinstalled in prokube
+  notebooks).
+- An `mlflow-credentials` Kubernetes secret in your namespace.
 
 ## Why a dedicated ServiceAccount is required
 
@@ -57,7 +60,7 @@ Both `InferenceService.yaml` and `apply.py` already reference this SA.
 1. Apply the ServiceAccount (once per namespace):
 
    ```sh
-   kubectl apply -f ServiceAccount.yaml
+   kubectl apply -f ServiceAccount.yaml -n <your-namespace>
    ```
 
 2. Open `InferenceService.yaml` and replace the placeholder values:
@@ -75,8 +78,8 @@ Both `InferenceService.yaml` and `apply.py` already reference this SA.
    the model artifact directly from the MLflow model registry.
 
    > [!WARNING]
-   > You need to the a MLFlow ClusterStorageContainer in order to use the
-   > `mlflow://` scheme (prokube platform versions >= 1.7.0)
+   > Using the `mlflow://` scheme requires an MLflow
+   > `ClusterStorageContainer` and prokube platform version 1.7.0 or later.
 
 3. Apply the manifest:
    ```sh
@@ -89,20 +92,22 @@ Both `InferenceService.yaml` and `apply.py` already reference this SA.
    kubectl get inferenceservice -n <your-namespace>
    ```
 
-Alternatively, `apply.py` handles steps 1–4 automatically (see below).
+Alternatively, deploy and test the service automatically:
+
+```sh
+export INFERENCE_SERVICE_API_KEY=<your-api-key>
+python apply.py
+```
+
+If `INFERENCE_SERVICE_API_KEY` is not set, `apply.py` prompts for it.
 
 ## Test the Deployment
 
 A test script and sample request body are provided to verify the deployment.
 
 > [!TIP]
-> `apply.py` needs a model-serving API key. Ask your cluster administrator
-> for one, or use pkui if it is available on your platform, then set it
-> before running the test script:
-> ```sh
-> export API_KEY=your-key-here
-> ```
-> If `API_KEY` is not set, `apply.py` will prompt for it interactively.
+> The test script needs a model-serving API key. Ask your cluster administrator
+> for one, or use pkui if it is available on your platform.
 
 1. Set the required environment variables (optional):
    ```sh

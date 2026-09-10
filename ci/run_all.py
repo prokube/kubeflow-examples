@@ -689,8 +689,8 @@ def _check_mlflow_credentials() -> tuple[bool, str]:
     )
     if r.returncode != 0:
         return False, (
-            "mlflow-credentials secret not found — "
-            "run `pk-setup-mlflow-credentials` first"
+            "mlflow-credentials secret not found — run the interactive "
+            "credential setup cell first"
         )
     try:
         data = _json.loads(r.stdout)["data"]
@@ -700,7 +700,8 @@ def _check_mlflow_credentials() -> tuple[bool, str]:
     except KeyError as exc:
         return (
             False,
-            f"mlflow-credentials secret is missing key {exc} — re-run `pk-setup-mlflow-credentials`",
+            f"mlflow-credentials secret is missing key {exc} — re-run the "
+            "interactive credential setup cell",
         )
 
     creds = _b64.b64encode(f"{username}:{password}".encode()).decode()
@@ -715,7 +716,7 @@ def _check_mlflow_credentials() -> tuple[bool, str]:
         if exc.code in (401, 403):
             return False, (
                 "MLflow credentials are invalid or the PAT has expired — "
-                "re-run `pk-setup-mlflow-credentials`"
+                "re-run the interactive credential setup cell"
             )
         return (
             False,

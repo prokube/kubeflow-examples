@@ -3,7 +3,7 @@
 This directory demonstrates both the v1 and v2 inference protocols for
 MLflow-tracked models deployed as KServe InferenceServices on prokube.
 
-It uses two ISVCs side-by-side:
+It deploys two InferenceServices side by side:
 
 | ISVC | Model format | Protocol | YAML |
 |---|---|---|---|
@@ -18,8 +18,11 @@ both and comparing request/response shapes for each protocol.
 - A model trained and registered in MLflow. See the
   [mobile price classification MLflow example](../../mlflow/mobile-price-classification/)
   for how to train and register the SVM model used here.
-- `kubectl` access to your prokube namespace. (already installed in a pk-notebook)
-- Python with the `requests` package installed (for testing, already installed in a pk-notebook)
+- `kubectl` access to your prokube namespace (`kubectl` is preinstalled in
+  prokube notebooks).
+- Python with the `requests` package (`requests` is preinstalled in prokube
+  notebooks).
+- An `mlflow-credentials` Kubernetes secret in your namespace.
 
 ## Why a dedicated ServiceAccount is required
 
@@ -67,15 +70,26 @@ reference this SA.
 > [!TIP]
 > `apply.py` (and the notebook's `deploy()` call) need a model-serving API
 > key. Ask your cluster administrator for one, or use pkui if it is
-> available on your platform. Set `API_KEY` in the environment before
-> calling `apply.py`, or you'll be prompted for it interactively.
+> available on your platform. Set `INFERENCE_SERVICE_API_KEY` before running
+> `apply.py`, or the script will prompt for it.
 
-## Deploy
+## Automated deployment
+
+To deploy both services, wait for them to become ready, and test them:
+
+```sh
+export INFERENCE_SERVICE_API_KEY=<your-api-key>
+python apply.py
+```
+
+If `INFERENCE_SERVICE_API_KEY` is not set, `apply.py` prompts for it.
+
+## Manual deployment
 
 1. Apply the ServiceAccount (once per namespace):
 
    ```sh
-   kubectl apply -f ServiceAccount.yaml
+   kubectl apply -f ServiceAccount.yaml -n <your-namespace>
    ```
 
 2. Replace the placeholder values in both ISVC YAMLs:
@@ -99,8 +113,8 @@ reference this SA.
    ```
 
    > [!WARNING]
-   > You need a MLFlow ClusterStorageContainer in order to use the
-   > `mlflow://` scheme (prokube platform versions >= 1.7.0)
+   > Using the `mlflow://` scheme requires an MLflow
+   > `ClusterStorageContainer` and prokube platform version 1.7.0 or later.
 
 ## Cleanup
 

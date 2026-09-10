@@ -80,7 +80,8 @@ def _mlflow_username(namespace: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(
             "mlflow-credentials secret not found.\n"
-            "Run `pk-setup-mlflow-credentials` to create it."
+            "Run `%run ~/examples/src/pk_helpers/mlflow_credentials.py` in a "
+            "notebook cell to create it."
         )
     data = json.loads(result.stdout)["data"]
     return base64.b64decode(data["MLFLOW_TRACKING_USERNAME"]).decode().split("@")[0]
