@@ -48,8 +48,13 @@ def _ensure_pk_helpers() -> None:
         import pk_helpers  # noqa: F401
     except ImportError:
         print("pk_helpers not found — installing repo editable...")
+        # --user outside a virtualenv (e.g. in a Kubeflow notebook pod) so the
+        # install lands under the persistent $HOME/.local instead of the
+        # container image's site-packages, which is wiped on the next pod
+        # restart. pip rejects --user inside a virtualenv, hence the guard.
+        user_flag = [] if sys.prefix != sys.base_prefix else ["--user"]
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-e", str(_REPO_ROOT)],
+            [sys.executable, "-m", "pip", "install", *user_flag, "-e", str(_REPO_ROOT)],
             check=True,
         )
         print("pk_helpers installed.")

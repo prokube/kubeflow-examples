@@ -19,10 +19,12 @@ For full platform documentation, see [docs.prokube.ai](https://docs.prokube.ai/)
 ```
 
 The shared `pk_helpers` package is installable from the repo root
-(`pip install -e .`); notebooks install it via a
-`%pip install -q -e $(git rev-parse --show-toplevel)` setup cell (works
-regardless of the clone directory name) and import helpers with
-`from pk_helpers import ...`.
+(`pip install -e .`); notebooks install it via a setup cell that resolves
+the repo root through git (works regardless of the clone directory name)
+and installs with `--user` outside a virtualenv, so it lands on the
+notebook pod's persistent `$HOME` volume instead of the container image's
+ephemeral site-packages (see [`ci/README.md`](ci/README.md#pk_helpers-package)
+for why). Import helpers with `from pk_helpers import ...`.
 
 Many serving examples include an `apply.py` (deploy + smoke-test) and a `cleanup.py`
 (teardown of Kubernetes resources) alongside the notebook. These are used by the CI

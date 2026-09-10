@@ -35,8 +35,13 @@ def _ensure_pk_helpers() -> None:
         repo_root = subprocess.check_output(
             ["git", "rev-parse", "--show-toplevel"], text=True
         ).strip()
+        # --user outside a virtualenv (e.g. in a Kubeflow notebook pod) so the
+        # install lands under the persistent $HOME/.local instead of the
+        # container image's site-packages, which is wiped on the next pod
+        # restart. pip rejects --user inside a virtualenv, hence the guard.
+        user_flag = [] if sys.prefix != sys.base_prefix else ["--user"]
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", "-e", repo_root],
+            [sys.executable, "-m", "pip", "install", "-q", *user_flag, "-e", repo_root],
             check=True,
         )
         # pip's editable-install .pth file is only picked up by `site` at

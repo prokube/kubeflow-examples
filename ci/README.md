@@ -129,12 +129,26 @@ pip install -e .
 In notebooks, do this from a setup cell near the top:
 
 ```python
-%pip install -q -e $(git rev-parse --show-toplevel)
+import sys
+
+_pip_user_flag = "" if sys.prefix != sys.base_prefix else "--user"
+%pip install -q {_pip_user_flag} -e $(git rev-parse --show-toplevel)
 ```
 
 Resolving the repo root via git (rather than a hardcoded `~/<dir-name>`
 path) means this cell keeps working regardless of what directory the repo
 is cloned into.
+
+The `--user` guard matters in a Kubeflow notebook pod: only `$HOME` (e.g.
+`/home/jovyan`) is on the persistent workspace volume — the interpreter's
+own site-packages (e.g. `/opt/conda/lib/python3.x/site-packages`) lives in
+the container image's ephemeral layer and is reset on every pod/kernel
+restart. A plain `pip install -e .` there silently disappears after a
+restart; `--user` installs into `$HOME/.local/lib/python3.x/site-packages`
+instead, which survives. `pip` itself refuses `--user` inside a
+virtualenv, hence the `sys.prefix != sys.base_prefix` check — the same
+guard is used in `ci/run_all.py`'s `_ensure_pk_helpers()` and in each
+`apply.py`'s copy of the same function.
 
 CI installs it automatically in the preflight step (`_ensure_pk_helpers`),
 so `apply.py` scripts can `from pk_helpers import ...` without any path
