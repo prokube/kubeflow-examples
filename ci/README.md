@@ -149,8 +149,7 @@ users do not need to install the package:
 ```
 
 The `-n` option loads the functions without running the script's command-line
-entry point. Use plain `%run` when the entry point itself is the intended
-interactive action, as shown below.
+entry point. Interactive cells can then call the required function directly.
 
 CI installs the package during preflight. Standalone `apply.py` scripts install
 it automatically if it is not already available, so those scripts can use
@@ -171,7 +170,7 @@ URI, email address, and token, and creates or updates the Secret:
 
 ```python
 # Prompts for your MLflow URI, email, and PAT, then creates or updates the Secret.
-%run ~/examples/src/pk_helpers/mlflow_credentials.py
+setup_mlflow_credentials()
 ```
 
 If the secret already exists, the script asks before replacing it and leaves
