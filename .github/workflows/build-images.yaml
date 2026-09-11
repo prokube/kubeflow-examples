@@ -2,26 +2,9 @@ name: Build Images
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-    - .github/workflows/build-images.yaml
-    - images/minimal-mnist/**
-    - images/streamlit-example/**
-    - pipelines/lightweight-python-package/**
-    - serving/minimal-custom-kserve-predictor/**
-    - serving/minimal-example-shadow-deployment/**
   push:
-    branches:
-    - main
     tags:
     - 'v*'
-    paths:
-    - .github/workflows/build-images.yaml
-    - images/minimal-mnist/**
-    - images/streamlit-example/**
-    - pipelines/lightweight-python-package/**
-    - serving/minimal-custom-kserve-predictor/**
-    - serving/minimal-example-shadow-deployment/**
 
 permissions:
   contents: read
@@ -31,42 +14,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      registry: ${{ steps.target.outputs.registry }}
-      release: ${{ steps.target.outputs.release }}
-      tag: ${{ steps.target.outputs.tag }}
-    steps:
-    - name: Resolve target
-      id: target
-      env:
-        EVENT: ${{ github.event_name }}
-        REF: ${{ github.ref }}
-        REF_NAME: ${{ github.ref_name }}
-      run: |
-        set -euo pipefail
-        if [[ "$EVENT" == "push" && "$REF" == refs/tags/* ]]; then
-          if [[ ! "$REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc(0|[1-9][0-9]*))?$ ]]; then
-            echo "Release tag must match vX.Y.Z or vX.Y.Z-rcN" >&2
-            exit 1
-          fi
-          {
-            echo "registry=europe-west3-docker.pkg.dev/prokube/releases"
-            echo "release=true"
-            echo "tag=$REF_NAME"
-          } >> "$GITHUB_OUTPUT"
-        else
-          {
-            echo "registry=europe-west3-docker.pkg.dev/prokube/development"
-            echo "release=false"
-            echo "tag=commit-$GITHUB_SHA"
-          } >> "$GITHUB_OUTPUT"
-        fi
-
   build:
-    needs: prepare
     runs-on: ubuntu-latest
+    env:
+      IS_RELEASE: ${{ github.event_name == 'push' }}
+      REGISTRY: ${{ github.event_name == 'push' && 'europe-west3-docker.pkg.dev/prokube/releases' || 'europe-west3-docker.pkg.dev/prokube/development' }}
+      TAG: ${{ github.event_name == 'push' && github.ref_name || format('commit-{0}', github.sha) }}
     strategy:
       fail-fast: false
       matrix:
@@ -93,14 +46,21 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v6
 
+    - name: Validate release tag
+      if: env.IS_RELEASE == 'true'
+      run: |
+        set -euo pipefail
+        if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc(0|[1-9][0-9]*))?$ ]]; then
+          echo "Release tag must match vX.Y.Z or vX.Y.Z-rcN" >&2
+          exit 1
+        fi
+
     - name: Authenticate to Google Cloud
-      if: github.event_name != 'pull_request'
       uses: google-github-actions/auth@v3
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
     - name: Log in to Google Artifact Registry
-      if: github.event_name != 'pull_request'
       uses: docker/login-action@v4
       with:
         registry: europe-west3-docker.pkg.dev
@@ -111,9 +71,9 @@ jobs:
       uses: docker/setup-buildx-action@v4
 
     - name: Check immutable release artifact
-      if: needs.prepare.outputs.release == 'true'
+      if: env.IS_RELEASE == 'true'
       env:
-        IMAGE: ${{ needs.prepare.outputs.registry }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
+        IMAGE: ${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.TAG }}
       run: |
         set -euo pipefail
         if OUTPUT=$(gcloud artifacts docker images describe "$IMAGE" 2>&1); then
@@ -131,7 +91,7 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.dockerfile }}
         platforms: linux/amd64
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ needs.prepare.outputs.release == 'true' && format('{0}/{1}:{2}', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) || format('{0}/{1}:{2},{0}/{1}:latest', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) }}
+        push: true
+        tags: ${{ env.IS_RELEASE == 'true' && format('{0}/{1}:{2}', env.REGISTRY, matrix.image, env.TAG) || format('{0}/{1}:{2},{0}/{1}:latest', env.REGISTRY, matrix.image, env.TAG) }}
         cache-from: type=gha,scope=${{ matrix.image }}
         cache-to: type=gha,mode=max,scope=${{ matrix.image }}
