@@ -24,12 +24,31 @@ def _kubectl_delete(*args: str, dry_run: bool = False) -> None:
         print(result.stdout.strip() or f"deleted (or not found): {' '.join(args)}")
 
 
+def _delete_s3_model(namespace: str, dry_run: bool = False) -> None:
+    s3_path = f"{namespace}-data/minimal-kserve-example/model.joblib"
+    if dry_run:
+        print(f"[dry-run] delete s3://{s3_path}")
+        return
+    try:
+        import s3fs
+
+        fs = s3fs.S3FileSystem()
+        if fs.exists(s3_path):
+            fs.rm(s3_path)
+            print(f"deleted s3://{s3_path}")
+        else:
+            print(f"s3://{s3_path} not found (already deleted)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: could not delete s3://{s3_path}: {exc}", file=sys.stderr)
+
+
 def cleanup(dry_run: bool = False) -> None:
     ns = _namespace()
 
     _kubectl_delete(
         "inferenceservice", "kserve-object-storage-test", "-n", ns, dry_run=dry_run
     )
+    _delete_s3_model(ns, dry_run=dry_run)
 
 
 if __name__ == "__main__":

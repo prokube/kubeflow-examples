@@ -97,7 +97,9 @@ argument, and pass the parsed value to `run_all()`.
 Any example that creates Kubernetes resources (InferenceService, Deployment,
 Service, CRD instance, …) must have a `cleanup.py` in its directory.
 CI runs all cleanup scripts in parallel in a `finally` block so they execute
-even on failure.
+even on failure. This is best-effort: `_run_cleanup` gives each script a
+120s budget and does not fail CI on a non-zero exit or timeout (only a
+warning is logged) — cleanup failures are not treated as example failures.
 
 A cleanup script must:
 - Delete resources idempotently (`--ignore-not-found`)
@@ -240,7 +242,7 @@ InferenceService, compatible with both prokube generations:
   `http://<isvc-name>-predictor.<namespace>.svc.cluster.local/v1/models/<model-name>:predict`.
 - Upcoming (agentgateway-based, not yet released): routes through the
   shared `agentgateway-proxy` Service instead —
-  `http://agentgateway-proxy.agentgateway-system.svc.cluster.local/_platform/serving/<namespace>/<isvc-name>/v2/models/<model-name>/infer`.
+  `http://agentgateway-proxy.agentgateway-system.svc.cluster.local/_platform/serving/<namespace>/<isvc-name>/v1/models/<model-name>:predict`.
 
 It picks the URL via a plain DNS lookup for the `agentgateway-proxy` Service
 (cached for the process) — no config flag needed, and no RBAC required

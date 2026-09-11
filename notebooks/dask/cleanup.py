@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-_CLUSTER_NAME = "dask-cluster"
+_CLUSTER_NAME = "test-cluster"  # must match KubeCluster(name=...) in dask_example.ipynb
 
 
 def _namespace() -> str:

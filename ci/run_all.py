@@ -16,9 +16,7 @@ from typing import Callable, Literal
 
 
 # ── Repo root ─────────────────────────────────────────────────────────────────
-_REPO_ROOT = Path(
-    subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-)
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 # ── Prerequisite: papermill ───────────────────────────────────────────────────
@@ -278,10 +276,13 @@ _EXAMPLES: list[Example] = [
     ),
 ]
 
-# Cleanup scripts for resources not covered by an Example entry above.
-_EXTRA_CLEANUP_PATHS: list[str] = [
-    "hparam-tuning/minimal-mnist/cleanup.py",
-]
+# Cleanup scripts for resources not covered by an Example entry above. Only
+# add a path here for a resource CI itself creates — hparam-tuning/minimal-mnist
+# has no registered Example (it's a manual `kubectl apply` walkthrough), so its
+# cleanup.py doesn't belong here: running it unconditionally on every CI run
+# would delete a same-named Katib Experiment a user started manually in the
+# shared namespace.
+_EXTRA_CLEANUP_PATHS: list[str] = []
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -338,11 +339,19 @@ def _strip_ci_skip_cells(nb_path: Path, output_dir: Path) -> Path:
     return stripped
 
 
-def _run_notebook(nb_path: Path, output_dir: Path, timeout: int) -> Path:
-    """Execute a notebook with papermill. Returns the output notebook path."""
+def _run_notebook(nb_path: Path, output_dir: Path, timeout: int, root: Path) -> Path:
+    """Execute a notebook with papermill. Returns the output notebook path.
+
+    Output notebooks are nested under their path relative to `root` (not
+    just the basename) so two examples with same-named notebooks — e.g.
+    notebooks/mobile-price-classification/ and
+    pipelines/lightweight-components/, both mobile-price-classifications.ipynb
+    — don't overwrite each other's output.
+    """
     import papermill as pm
     from papermill.exceptions import PapermillExecutionError
 
+    output_dir = output_dir / nb_path.parent.relative_to(root)
     output_dir.mkdir(parents=True, exist_ok=True)
     nb_to_run = _strip_ci_skip_cells(nb_path, output_dir)
     output_path = output_dir / nb_path.name
@@ -525,7 +534,7 @@ def _make_work(
     def work(result: Result) -> None:
         for step in steps:
             if step.kind == "notebook":
-                out = _run_notebook(root / step.path, output_dir, timeout)
+                out = _run_notebook(root / step.path, output_dir, timeout, root)
                 if step.extract_run_ids:
                     result.kfp_run_ids.extend(_extract_run_ids_from_notebook(out))
             elif step.kind == "script":
@@ -589,6 +598,34 @@ def _print_result(r: Result) -> None:
             print(f"         {line}")
 
 
+def _fold_kfp_failures_into_results(
+    results: dict[str, Result],
+    poll_results: dict[str, str],
+    poll_errors: dict[str, str],
+    run_id_to_name: dict[str, str],
+) -> None:
+    """Mark an example FAIL if its KFP run didn't succeed.
+
+    Submitting a pipeline (Phase 2) can return PASS while the run itself
+    later fails, errors, or times out (Phase 4 polling) — without this, that
+    failure is only visible in the printed report and `run_all()`'s exit
+    code stays 0.
+    """
+    for run_id, status in poll_results.items():
+        if status.upper() in ("SUCCEEDED", "SKIPPED"):
+            continue
+        name = run_id_to_name.get(run_id)
+        if name not in results:
+            continue
+        r = results[name]
+        r.status = "FAIL"
+        detail = f"KFP run {run_id[:8]}...: {status}"
+        err = poll_errors.get(run_id, "")
+        if err:
+            detail += f"\n{err}"
+        r.error = f"{r.error}\n{detail}" if r.error else detail
+
+
 def _print_report(
     results: dict[str, Result],
     poll_results: dict[str, str],
@@ -596,17 +633,8 @@ def _print_report(
     run_id_to_name: dict[str, str],
 ) -> None:
     col = 50
-    passed = failed = 0
-    for r in results.values():
-        if r.status == "FAIL":
-            failed += 1
-        else:
-            passed += 1
-    for status in poll_results.values():
-        if status.upper() == "SUCCEEDED":
-            passed += 1
-        else:
-            failed += 1
+    passed = sum(1 for r in results.values() if r.status != "FAIL")
+    failed = sum(1 for r in results.values() if r.status == "FAIL")
 
     if failed:
         print("\nFailed details:")
@@ -829,7 +857,10 @@ def _await_mobile_price(ctx: _Context, phase2_futures: dict[str, Future]) -> boo
     )
     ok = True
     for run_id in run_ids:
-        state, err = _poll_kfp_run(run_id, ctx.timeout_pipeline)
+        try:
+            state, err = _poll_kfp_run(run_id, ctx.timeout_pipeline)
+        except Exception as exc:  # noqa: BLE001
+            state, err = f"POLL_ERROR: {exc}", ""
         ctx.poll_results[run_id] = state
         ctx.poll_errors[run_id] = err
         print(f"    [{state}] {run_id[:8]}...")
@@ -966,6 +997,7 @@ def run_all(
     run_id_to_name = {
         run_id: r.name for r in results.values() for run_id in r.kfp_run_ids
     }
+    _fold_kfp_failures_into_results(results, poll_results, poll_errors, run_id_to_name)
     _print_report(results, poll_results, poll_errors, run_id_to_name)
     return results
 

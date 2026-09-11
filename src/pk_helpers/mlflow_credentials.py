@@ -61,7 +61,8 @@ def setup_mlflow_credentials(
     Any parameter left as ``None`` will be requested interactively.
     """
     ns = _namespace()
-    if _secret_exists(ns):
+    all_supplied = uri is not None and username is not None and password is not None
+    if not all_supplied and _secret_exists(ns):
         overwrite = _prompt(
             f"Secret '{_SECRET_NAME}' already exists in namespace '{ns}'. "
             "Replace it? [y/N]"

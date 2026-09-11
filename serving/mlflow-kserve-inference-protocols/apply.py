@@ -88,7 +88,8 @@ def _mlflow_username(namespace: str) -> str:
 
 
 def _apply_yaml(yaml_file: str, namespace: str, username: str) -> None:
-    manifest = open(yaml_file).read()
+    with open(yaml_file) as fh:
+        manifest = fh.read()
     manifest = manifest.replace("<workspace-name>", namespace).replace(
         "<username>", username
     )
@@ -178,7 +179,9 @@ def _smoke_test(uri: str, name: str, protocol: str, api_key: str) -> None:
 
     if pred_key not in result:
         raise RuntimeError(f"Smoke test {protocol}: unexpected response: {result}")
-    print(f"  [{protocol}] smoke test passed — {len(result[pred_key])} prediction(s)")
+    unit = "prediction" if protocol == "v1" else "output"
+    count = len(result[pred_key])
+    print(f"  [{protocol}] smoke test passed — {count} {unit}{'s' if count != 1 else ''}")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -188,21 +191,21 @@ def deploy(timeout: int = 600) -> tuple[str, str, str]:
     """Deploy both ISVCs, wait for readiness, and return (v1_uri, v2_uri, api_key)."""
     ns = _namespace()
     username = _mlflow_username(ns)
+    api_key = _get_api_key()  # fail fast, before mutating the cluster
 
     print("Applying ServiceAccount...")
     _apply_yaml(_SA_YAML, ns, username)
 
     print("Applying InferenceService manifests...")
-    for proto, yaml_file in _YAML_FILES.items():
+    for yaml_file in _YAML_FILES.values():
         _apply_yaml(yaml_file, ns, username)
 
     print("Waiting for InferenceServices to become ready...")
-    for proto, name in _ISVC_NAMES.items():
+    for name in _ISVC_NAMES.values():
         _wait_ready(name, ns, timeout)
 
     v1_uri = _isvc_url(_ISVC_NAMES["v1"], ns)
     v2_uri = _isvc_url(_ISVC_NAMES["v2"], ns)
-    api_key = _get_api_key()
 
     print(f"v1 URI: {v1_uri}")
     print(f"v2 URI: {v2_uri}")

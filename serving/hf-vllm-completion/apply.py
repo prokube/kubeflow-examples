@@ -7,11 +7,12 @@ import os
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.request
 
 _ISVC_NAME = "distilbert-inf-serv"
 _MODEL_NAME = "distilbert"
+# CI runs the CPU-only DistilBERT manifest, not the vLLM/Qwen one the
+# directory name suggests — that one needs GPU nodes.
 _YAML = os.path.join(os.path.dirname(__file__), "inference-service-cpu.yaml")
 
 
@@ -94,7 +95,6 @@ def _wait_isvc_ready(name: str, namespace: str, timeout: int) -> None:
 
 def _smoke_test(namespace: str, timeout: int = 300) -> None:
     """POST to the internal cluster URL; retries until the model responds."""
-    _ensure_pk_helpers()
     from pk_helpers import internal_predict_url
 
     url = internal_predict_url(_ISVC_NAME, namespace, _MODEL_NAME)
@@ -126,6 +126,7 @@ def _smoke_test(namespace: str, timeout: int = 300) -> None:
 
 def deploy(timeout: int = 900) -> None:
     ns = _namespace()
+    _ensure_pk_helpers()  # fail fast, before mutating the cluster
 
     with open(_YAML) as fh:
         manifest = fh.read()

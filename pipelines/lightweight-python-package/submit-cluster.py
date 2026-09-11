@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     run = client.create_run_from_pipeline_func(
         mobile_price_classification_pipeline,
-        enable_caching=True,
+        enable_caching=False,
         arguments={
             "train_data_path": f"s3://{s3_dataset_path}/train.csv",
             "test_data_path": f"s3://{s3_dataset_path}/test.csv",

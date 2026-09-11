@@ -6,7 +6,7 @@ import argparse
 import subprocess
 import sys
 
-_EXPERIMENT_NAME = "minimal-mnist"
+_EXPERIMENT_NAME = "random-mnist"  # must match katib-experiment.yaml's metadata.name
 
 
 def _namespace() -> str:
@@ -28,8 +28,12 @@ def _kubectl_delete(*args: str, dry_run: bool = False) -> None:
 
 def cleanup(dry_run: bool = False) -> None:
     ns = _namespace()
-    # Deleting the Experiment cascades to Trials via owner references
-    _kubectl_delete("experiment", _EXPERIMENT_NAME, "-n", ns, dry_run=dry_run)
+    # experiments.kubeflow.org, not the bare "experiment" resource type,
+    # which is ambiguous on clusters with Argo Rollouts installed.
+    # Deleting the Experiment cascades to Trials via owner references.
+    _kubectl_delete(
+        "experiments.kubeflow.org", _EXPERIMENT_NAME, "-n", ns, dry_run=dry_run
+    )
 
 
 if __name__ == "__main__":

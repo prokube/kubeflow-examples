@@ -22,11 +22,14 @@ def get_or_create_api_key() -> str:
     if env_key:
         return env_key
 
-    key = getpass(
-        f"${_API_KEY_ENV_VAR} is unset. Please enter your model-serving API "
-        "key (ask your cluster admin, or use pkui if available on your "
-        "platform): "
-    ).strip()
+    try:
+        key = getpass(
+            f"${_API_KEY_ENV_VAR} is unset. Please enter your model-serving API "
+            "key (ask your cluster admin, or use pkui if available on your "
+            "platform): "
+        ).strip()
+    except EOFError:
+        key = ""
     if not key:
         raise RuntimeError(
             f"No API key available: ${_API_KEY_ENV_VAR} is unset and no key "

@@ -158,14 +158,8 @@ _TEST_SCRIPT = os.path.join(_HERE, "test_inference_service.py")
 _TEST_JSON = os.path.join(_HERE, "v2-mlflow-inference-body.json")
 
 
-def test(uri: str) -> None:
+def test(uri: str, api_key: str) -> None:
     """Run the inference smoke test against the deployed ISVC."""
-    # Get / create the API key
-    _ensure_pk_helpers()
-    from pk_helpers import get_or_create_api_key
-
-    api_key = get_or_create_api_key()
-
     print(f"Running inference smoke test against {uri} ...")
     result = subprocess.run(
         [sys.executable, _TEST_SCRIPT, "--json", _TEST_JSON, "--model", _ISVC_NAME],
@@ -181,8 +175,13 @@ def test(uri: str) -> None:
 
 def deploy_and_test(timeout: int = 600) -> str:
     """Deploy the ISVC, wait for readiness, run smoke test, return the URL."""
+    _ensure_pk_helpers()
+    from pk_helpers import get_or_create_api_key
+
+    api_key = get_or_create_api_key()  # fail fast, before mutating the cluster
+
     uri = deploy(timeout=timeout)
-    test(uri)
+    test(uri, api_key)
     return uri
 
 
