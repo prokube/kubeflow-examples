@@ -20,12 +20,12 @@ For Step 4, you can use the example provided in this directory.
 ## Starting the Experiment
 
 ### Image Configuration
-The YAML file uses the prokube.ai development registry by default:
+The YAML file uses the prokube internal registry by default:
 ```
-europe-west3-docker.pkg.dev/prokube/development/minimal-mnist:latest
+europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-mnist:latest
 ```
 
-**If you don't have access to the prokube.ai registry**, you need to:
+**If you don't have access to the prokube registry**, you need to:
 1. Build your own image (see [../../images/minimal-mnist/README.md](../../images/minimal-mnist/README.md) for instructions)
 2. Replace the `image` field in `katib-experiment.yaml` (line 73) with your own registry path
 

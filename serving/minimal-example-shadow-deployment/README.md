@@ -112,18 +112,17 @@ EOF
 ### 2. Build and push images (optional — skip if using pre-built images)
 
 Pre-built images are available at:
-- `europe-west3-docker.pkg.dev/prokube/development/minimal-predictor:latest`
-- `europe-west3-docker.pkg.dev/prokube/development/minimal-transformer:latest`
+- `europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-predictor:latest`
+- `europe-west3-docker.pkg.dev/prokube-internal/prokube-customer/minimal-transformer:latest`
 
-These are accessible from any prokube.ai cluster via the `regcred-prokube` secret on the
+These are accessible from any prokube cluster via the `regcred-prokube` secret on the
 `default-editor` service account. If you need to build your own:
 
 ```bash
-TAG=my-development-tag
-docker build -t europe-west3-docker.pkg.dev/prokube/development/minimal-predictor:$TAG minimal-predictor/
-docker build -t europe-west3-docker.pkg.dev/prokube/development/minimal-transformer:$TAG minimal-transformer/
-docker push europe-west3-docker.pkg.dev/prokube/development/minimal-predictor:$TAG
-docker push europe-west3-docker.pkg.dev/prokube/development/minimal-transformer:$TAG
+docker build -t <your-registry>/minimal-predictor:latest minimal-predictor/
+docker build -t <your-registry>/minimal-transformer:latest minimal-transformer/
+docker push <your-registry>/minimal-predictor:latest
+docker push <your-registry>/minimal-transformer:latest
 ```
 
 Then update the `image` fields in both InferenceService YAMLs accordingly.

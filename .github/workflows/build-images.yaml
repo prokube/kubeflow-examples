@@ -3,11 +3,25 @@ name: Build Images
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+    - .github/workflows/build-images.yaml
+    - images/minimal-mnist/**
+    - images/streamlit-example/**
+    - pipelines/lightweight-python-package/**
+    - serving/minimal-custom-kserve-predictor/**
+    - serving/minimal-example-shadow-deployment/**
   push:
     branches:
     - main
     tags:
     - 'v*'
+    paths:
+    - .github/workflows/build-images.yaml
+    - images/minimal-mnist/**
+    - images/streamlit-example/**
+    - pipelines/lightweight-python-package/**
+    - serving/minimal-custom-kserve-predictor/**
+    - serving/minimal-example-shadow-deployment/**
 
 permissions:
   contents: read
@@ -20,20 +34,35 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      publish: ${{ steps.build.outputs.publish }}
-      registry: ${{ steps.build.outputs.registry }}
-      release: ${{ steps.build.outputs.release }}
-      tag: ${{ steps.build.outputs.tag }}
+      registry: ${{ steps.target.outputs.registry }}
+      release: ${{ steps.target.outputs.release }}
+      tag: ${{ steps.target.outputs.tag }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Test registry lifecycle contract
-      run: python3 .github/testing/test_registry_lifecycle.py
-
-    - name: Resolve build
-      id: build
-      run: python3 .github/scripts/resolve_build.py
+    - name: Resolve target
+      id: target
+      env:
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+        if [[ "$EVENT" == "push" && "$REF" == refs/tags/* ]]; then
+          if [[ ! "$REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc(0|[1-9][0-9]*))?$ ]]; then
+            echo "Release tag must match vX.Y.Z or vX.Y.Z-rcN" >&2
+            exit 1
+          fi
+          {
+            echo "registry=europe-west3-docker.pkg.dev/prokube/releases"
+            echo "release=true"
+            echo "tag=$REF_NAME"
+          } >> "$GITHUB_OUTPUT"
+        else
+          {
+            echo "registry=europe-west3-docker.pkg.dev/prokube/development"
+            echo "release=false"
+            echo "tag=commit-$GITHUB_SHA"
+          } >> "$GITHUB_OUTPUT"
+        fi
 
   build:
     needs: prepare
@@ -82,56 +111,27 @@ jobs:
       uses: docker/setup-buildx-action@v4
 
     - name: Check immutable release artifact
-      id: artifact
-      if: github.event_name != 'pull_request' && needs.prepare.outputs.release == 'true'
+      if: needs.prepare.outputs.release == 'true'
       env:
-        IMAGE: ${{ matrix.image }}
-        TAG: ${{ needs.prepare.outputs.tag }}
+        IMAGE: ${{ needs.prepare.outputs.registry }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
       run: |
-        gcloud artifacts repositories describe releases \
-          --location=europe-west3 \
-          --project=prokube >/dev/null
-        STATE=$(REGISTRY_TOKEN="$(gcloud auth print-access-token)" \
-          python3 .github/scripts/registry_manifest.py \
-          --registry europe-west3-docker.pkg.dev \
-          --image "prokube/releases/$IMAGE" \
-          --tag "$TAG")
-        if [[ "$STATE" == "exists" ]]; then
-          echo "$IMAGE:$TAG already exists; preserving the immutable release artifact"
-          echo "exists=true" >> "$GITHUB_OUTPUT"
+        set -euo pipefail
+        if OUTPUT=$(gcloud artifacts docker images describe "$IMAGE" 2>&1); then
+          echo "$IMAGE already exists; refusing to overwrite it" >&2
+          exit 1
+        fi
+        if [[ "$OUTPUT" != *"NOT_FOUND"* ]]; then
+          echo "$OUTPUT" >&2
+          exit 1
         fi
 
-    - name: Build pull request image
-      if: github.event_name == 'pull_request'
+    - name: Build image
       uses: docker/build-push-action@v7
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.dockerfile }}
         platforms: linux/amd64
-        push: false
-        cache-from: type=gha,scope=${{ matrix.image }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-
-    - name: Build and push release image
-      if: github.event_name != 'pull_request' && needs.prepare.outputs.release == 'true' && steps.artifact.outputs.exists != 'true'
-      uses: docker/build-push-action@v7
-      with:
-        context: ${{ matrix.context }}
-        file: ${{ matrix.dockerfile }}
-        platforms: linux/amd64
-        push: true
-        tags: ${{ needs.prepare.outputs.registry }}/${{ matrix.image }}:${{ needs.prepare.outputs.tag }}
-        cache-from: type=gha,scope=${{ matrix.image }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-
-    - name: Build and push development image
-      if: github.event_name != 'pull_request' && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.release != 'true'
-      uses: docker/build-push-action@v7
-      with:
-        context: ${{ matrix.context }}
-        file: ${{ matrix.dockerfile }}
-        platforms: linux/amd64
-        push: true
-        tags: ${{ github.event_name == 'push' && format('{0}/{1}:{2},{0}/{1}:latest', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) || format('{0}/{1}:{2}', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) }}
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ needs.prepare.outputs.release == 'true' && format('{0}/{1}:{2}', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) || format('{0}/{1}:{2},{0}/{1}:latest', needs.prepare.outputs.registry, matrix.image, needs.prepare.outputs.tag) }}
         cache-from: type=gha,scope=${{ matrix.image }}
         cache-to: type=gha,mode=max,scope=${{ matrix.image }}
