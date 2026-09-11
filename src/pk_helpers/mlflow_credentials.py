@@ -26,7 +26,7 @@ def _prompt(label: str, secret: bool = False) -> str:
     if secret:
         import getpass
 
-        return getpass.getpass(f"{label}: ")
+        return getpass.getpass(f"{label}: ").strip()
     return input(f"{label}: ").strip()
 
 
@@ -79,6 +79,12 @@ def setup_mlflow_credentials(
     if password is None:
         password = _prompt(
             "MLFLOW_TRACKING_PASSWORD (Personal Access Token)", secret=True
+        )
+
+    if not uri or not username or not password:
+        raise ValueError(
+            "MLFLOW_TRACKING_URI, MLFLOW_TRACKING_USERNAME, and "
+            "MLFLOW_TRACKING_PASSWORD must all be non-empty."
         )
 
     result = subprocess.run(

@@ -933,8 +933,15 @@ def run_all(
     poll_results: dict[str, str] = {}
     poll_errors: dict[str, str] = {}
 
+    # Not using `with ThreadPoolExecutor(...) as executor` on purpose: its
+    # __exit__ always calls shutdown(wait=True), which blocks until every
+    # already-running example finishes (up to timeout_notebook each) before
+    # cleanup gets a chance to run. On Ctrl-C we instead cancel queued work
+    # and skip straight to cleanup instead of waiting.
+    executor = ThreadPoolExecutor(max_workers=8)
+    interrupted = False
     try:
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        try:
             ctx = _Context(
                 executor=executor,
                 root=root,
@@ -990,8 +997,12 @@ def run_all(
             _drain(ctx, remaining)
 
             _phase4_poll(ctx)
-
+        except KeyboardInterrupt:
+            interrupted = True
+            print("\nInterrupted — cancelling queued work and skipping to cleanup...")
+            raise
     finally:
+        executor.shutdown(wait=not interrupted, cancel_futures=interrupted)
         _phase5_cleanup(cleanup_scripts)
 
     run_id_to_name = {
