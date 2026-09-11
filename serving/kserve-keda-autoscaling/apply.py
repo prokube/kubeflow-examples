@@ -1,4 +1,4 @@
-"""Deploy and verify KEDA autoscaling, skipping when KEDA is unavailable."""
+"""Deploy a KEDA-scaled InferenceService and verify it actually scales under load."""
 
 from __future__ import annotations
 
@@ -7,13 +7,15 @@ import os
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.request
 
 _ISVC_NAME = "opt-125m"
 _SCALED_OBJECT_NAME = "opt-125m-scaledobject"
+# In RawDeployment mode KServe names the Deployment {isvc-name}-predictor.
+_DEPLOYMENT_NAME = "opt-125m-predictor"
 _ISVC_YAML = os.path.join(os.path.dirname(__file__), "inference-service.yaml")
 _SO_YAML = os.path.join(os.path.dirname(__file__), "scaled-object.yaml")
+_LOAD_GENERATOR = os.path.join(os.path.dirname(__file__), "load-generator.py")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -85,9 +87,10 @@ def _wait_isvc_ready(name: str, namespace: str, timeout: int) -> None:
         )
 
 
-def _wait_scaledobject_active(name: str, namespace: str, timeout: int = 120) -> None:
-    """Poll until KEDA reports the ScaledObject as Active=True."""
-    print(f"Waiting for ScaledObject '{name}' to become active...")
+def _wait_scaledobject_ready(name: str, namespace: str, timeout: int = 60) -> None:
+    """Poll until KEDA accepts the ScaledObject (Ready=True). Unlike
+    'Active', this doesn't require traffic to have been sent yet."""
+    print(f"Waiting for ScaledObject '{name}' to be accepted by KEDA...")
     deadline = time.time() + timeout
     while time.time() < deadline:
         r = subprocess.run(
@@ -99,19 +102,113 @@ def _wait_scaledobject_active(name: str, namespace: str, timeout: int = 120) -> 
                 "-n",
                 namespace,
                 "-o",
-                "jsonpath={.status.conditions[?(@.type=='Active')].status}",
+                "jsonpath={.status.conditions[?(@.type=='Ready')].status}",
             ],
             capture_output=True,
             text=True,
         )
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"'kubectl get scaledobject {name}' failed:\n{r.stderr or r.stdout}"
+            )
         if r.stdout.strip() == "True":
-            print(f"ScaledObject '{name}' is active.")
+            print(f"ScaledObject '{name}' is ready.")
             return
-        time.sleep(10)
+        time.sleep(5)
     raise RuntimeError(
-        f"ScaledObject '{name}' did not become active within {timeout}s. "
-        "Check 'kubectl describe scaledobject' for trigger errors."
+        f"ScaledObject '{name}' did not become ready within {timeout}s. "
+        "Check 'kubectl describe scaledobject' for trigger/auth errors."
     )
+
+
+def _get_ready_replicas(name: str, namespace: str) -> int:
+    r = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "deployment",
+            name,
+            "-n",
+            namespace,
+            "-o",
+            "jsonpath={.status.readyReplicas}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"'kubectl get deployment {name}' failed:\n{r.stderr or r.stdout}"
+        )
+    return int(r.stdout.strip() or 0)
+
+
+def _get_scaledobject_active(name: str, namespace: str) -> str:
+    r = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "scaledobject",
+            name,
+            "-n",
+            namespace,
+            "-o",
+            "jsonpath={.status.conditions[?(@.type=='Active')].status}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return r.stdout.strip() if r.returncode == 0 else "unknown"
+
+
+def _verify_autoscaling(
+    namespace: str, target_replicas: int = 2, timeout: int = 300
+) -> None:
+    """Drive sustained load (stable-2 preset, ~8 tok/s) and confirm the
+    Deployment actually scales up — a single request never crosses the
+    Prometheus threshold, so replica count alone proves autoscaling works."""
+    print(
+        f"Generating load (stable-2 preset, ~8 tok/s) to verify scale-up to "
+        f"{target_replicas} replicas (timeout {timeout}s)..."
+    )
+    url = f"http://{_DEPLOYMENT_NAME}.{namespace}.svc.cluster.local/openai/v1/completions"
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            _LOAD_GENERATOR,
+            "--mode",
+            "stable-2",
+            "--url",
+            url,
+            "--model",
+            _ISVC_NAME,
+            "--duration",
+            str(timeout),
+        ],
+    )
+    try:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            ready = _get_ready_replicas(_DEPLOYMENT_NAME, namespace)
+            if ready >= target_replicas:
+                active = _get_scaledobject_active(_SCALED_OBJECT_NAME, namespace)
+                print(
+                    f"Deployment '{_DEPLOYMENT_NAME}' scaled to {ready} replica(s) "
+                    f"(ScaledObject Active={active}) — autoscaling verified."
+                )
+                return
+            time.sleep(10)
+        raise RuntimeError(
+            f"Deployment '{_DEPLOYMENT_NAME}' did not scale to {target_replicas} "
+            f"replicas within {timeout}s under sustained load. Check "
+            "'kubectl describe scaledobject', the HPA, and Prometheus connectivity."
+        )
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 def _smoke_test(namespace: str, timeout: int = 60) -> None:
@@ -167,16 +264,17 @@ def deploy(timeout: int = 900) -> None:
         so_manifest = fh.read()
     skip_reason = _try_apply_scaledobject(so_manifest, ns)
     if skip_reason:
-        print(
-            f"SKIP: KEDA is not installed in this cluster "
+        raise RuntimeError(
+            "KEDA is not installed in this cluster "
             f"(kubectl apply returned: {skip_reason}).\n"
-            "The ScaledObject was not created; the ISVC is running without autoscaling."
+            "This example is opt-in (--include-keda) specifically because it "
+            "requires KEDA — install KEDA in the cluster, or omit --include-keda."
         )
-        sys.exit(0)
     print(f"Applied ScaledObject '{_SCALED_OBJECT_NAME}' in namespace '{ns}'.")
 
-    _wait_scaledobject_active(_SCALED_OBJECT_NAME, ns)
+    _wait_scaledobject_ready(_SCALED_OBJECT_NAME, ns)
     _smoke_test(ns)
+    _verify_autoscaling(ns)
 
 
 if __name__ == "__main__":

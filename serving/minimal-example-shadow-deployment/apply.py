@@ -8,7 +8,6 @@ import os
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.request
 
 _ROOT = os.path.dirname(__file__)
@@ -32,9 +31,9 @@ CREATE TABLE IF NOT EXISTS public.inference_requests (
     PRIMARY KEY (request_id)
 );
 CREATE TABLE IF NOT EXISTS public.inference_response (
-    request_id   uuid      NOT NULL,
-    request_data json      NULL,
-    created_at   timestamp NULL,
+    request_id    uuid      NOT NULL,
+    response_data json      NULL,
+    created_at    timestamp NULL,
     PRIMARY KEY (request_id)
 );
 """
@@ -46,33 +45,6 @@ CREATE TABLE IF NOT EXISTS public.inference_response (
 def _namespace() -> str:
     with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace") as fh:
         return fh.read().strip()
-
-
-def _ensure_pk_helpers() -> None:
-    """Editable-install pk_helpers if it isn't already importable.
-
-    Lets this script run standalone — not just via CI, which does the same
-    thing in its own preflight step.
-    """
-    try:
-        import pk_helpers  # noqa: F401
-    except ImportError:
-        repo_root = subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"], text=True
-        ).strip()
-        # --user outside a virtualenv (e.g. in a Kubeflow notebook pod) so the
-        # install lands under the persistent $HOME/.local instead of the
-        # container image's site-packages, which is wiped on the next pod
-        # restart. pip rejects --user inside a virtualenv, hence the guard.
-        user_flag = [] if sys.prefix != sys.base_prefix else ["--user"]
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", *user_flag, "-e", repo_root],
-            check=True,
-        )
-        # pip's editable-install .pth file is only picked up by `site` at
-        # interpreter startup, so patch sys.path directly to make the
-        # package importable in this already-running process too.
-        sys.path.insert(0, os.path.join(repo_root, "src"))
 
 
 def _kubectl_apply(manifest: str, namespace: str) -> None:
@@ -126,19 +98,44 @@ def _wait_for_secret(name: str, namespace: str, timeout: int = 300) -> None:
     )
 
 
+def _wait_pod_exists(label_selector: str, namespace: str, timeout: int) -> None:
+    """Poll until a matching pod exists ('kubectl wait' errors instead of
+    blocking if the operator hasn't created it yet)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        r = subprocess.run(
+            ["kubectl", "get", "pod", "-l", label_selector, "-n", namespace, "-o", "name"],
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return
+        time.sleep(5)
+    raise RuntimeError(
+        f"No pod matching '{label_selector}' appeared within {timeout}s. "
+        "Check the PostgresCluster status."
+    )
+
+
 def _wait_pg_primary_ready(namespace: str, timeout: int = 300) -> None:
     """Wait for the postgres primary pod to be ready."""
     print("Waiting for PostgresCluster primary pod to be ready...")
+    label_selector = (
+        f"postgres-operator.crunchydata.com/cluster={_PG_CLUSTER_NAME},"
+        "postgres-operator.crunchydata.com/role=master"
+    )
+    t0 = time.time()
+    _wait_pod_exists(label_selector, namespace, timeout)
+    remaining = max(timeout - int(time.time() - t0), 30)
     result = subprocess.run(
         [
             "kubectl",
             "wait",
             "pod",
             "-l",
-            f"postgres-operator.crunchydata.com/cluster={_PG_CLUSTER_NAME},"
-            "postgres-operator.crunchydata.com/role=master",
+            label_selector,
             "--for=condition=Ready",
-            f"--timeout={timeout}s",
+            f"--timeout={remaining}s",
             "-n",
             namespace,
         ],
@@ -192,9 +189,12 @@ def _create_schema(namespace: str, password: str) -> None:
             f"--env=PGPASSWORD={password}",
             "--",
             "psql",
-            f"-h={host}",
-            f"-U={_PG_USER}",
-            f"-d={_PG_DB}",
+            "-h",
+            host,
+            "-U",
+            _PG_USER,
+            "-d",
+            _PG_DB,
         ],
         input=_SCHEMA_SQL,
         text=True,
@@ -233,16 +233,39 @@ def _wait_isvc_ready(name: str, namespace: str, timeout: int) -> None:
         )
 
 
+def _internal_isvc_url(name: str, namespace: str) -> str:
+    """Return the ISVC's internal address. Unlike hitting the predictor
+    Service directly, this routes through the transformer — the component
+    that persists requests/responses to Postgres."""
+    result = subprocess.run(
+        [
+            "kubectl",
+            "get",
+            "inferenceservice",
+            name,
+            "-n",
+            namespace,
+            "-o",
+            "jsonpath={.status.address.url}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        raise RuntimeError(
+            f"Could not read internal address for InferenceService '{name}': "
+            f"{result.stderr}"
+        )
+    return result.stdout.strip()
+
+
 def _smoke_test(namespace: str, timeout: int = 120) -> None:
     """POST numeric values to the primary (doubler) ISVC and verify predictions.
 
     The doubler predictor multiplies each input value by FACTOR=2, so
     [1.0, 2.0, 3.0] must produce predictions [2.0, 4.0, 6.0].
     """
-    _ensure_pk_helpers()
-    from pk_helpers import internal_predict_url
-
-    url = internal_predict_url(_DOUBLER_ISVC, namespace, "model")
+    url = _internal_isvc_url(_DOUBLER_ISVC, namespace) + "/v1/models/model:predict"
     inputs = [1.0, 2.0, 3.0]
     expected = [2.0, 4.0, 6.0]
     payload = json.dumps({"values": inputs}).encode()
@@ -258,9 +281,9 @@ def _smoke_test(namespace: str, timeout: int = 120) -> None:
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 body = json.loads(resp.read())
-            predictions = body.get("predictions")
+            predictions = body.get("results")
             if predictions is None:
-                raise RuntimeError(f"no 'predictions' key in response: {body}")
+                raise RuntimeError(f"no 'results' key in response: {body}")
             if predictions != expected:
                 raise RuntimeError(
                     f"doubler (FACTOR=2) returned wrong predictions: "

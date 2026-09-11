@@ -13,7 +13,9 @@ def _namespace() -> str:
 
 
 def _kubectl_delete(*args: str, dry_run: bool = False) -> None:
-    cmd = ["kubectl", "delete", *args, "--ignore-not-found"]
+    # --wait=false: sequential blocking deletes of the PostgresCluster (with
+    # PVCs) can exceed _run_cleanup's 120s budget and skip later deletes.
+    cmd = ["kubectl", "delete", *args, "--ignore-not-found", "--wait=false"]
     if dry_run:
         print(f"[dry-run] {' '.join(cmd)}")
         return
@@ -35,6 +37,8 @@ def cleanup(dry_run: bool = False) -> None:
     _kubectl_delete(
         "postgrescluster", "inferencing-postgres", "-n", ns, dry_run=dry_run
     )
+    # Can be left behind if apply.py was killed mid-run despite --rm.
+    _kubectl_delete("pod", "pg-schema-init", "-n", ns, dry_run=dry_run)
 
 
 if __name__ == "__main__":
